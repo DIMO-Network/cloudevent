@@ -86,5 +86,5 @@ func (c *CloudEventHeader) Equals(other CloudEventHeader) bool {
 
 // Key returns the unique identifier for the CloudEvent.
 func (c CloudEventHeader) Key() string {
-	return c.Subject + ":" + c.Time.Format(time.RFC3339) + ":" + c.Type + ":" + c.Source + ":" + c.ID
+	return c.Subject + "!" + c.Time.Format(time.RFC3339) + "!" + c.Type + "!" + c.Source + "!" + c.ID
 }
