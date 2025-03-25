@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS cloud_event (
     index_key String COMMENT 'Key of the backing object for this cloud event'
 ) ENGINE = MergeTree()
 ORDER BY
-    (subject, event_time, event_type) SETTINGS index_granularity = 8192;`,
+    (subject, event_time, event_type, source, id) SETTINGS index_granularity = 8192;`,
 	}
 	for _, upStatement := range upStatements {
 		_, err := tx.ExecContext(ctx, upStatement)
