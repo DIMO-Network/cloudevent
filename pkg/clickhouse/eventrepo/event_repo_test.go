@@ -259,7 +259,7 @@ func TestStoreObject(t *testing.T) {
 	}
 	metadata, err := indexService.GetLatestIndex(ctx, opts)
 	require.NoError(t, err)
-	expectedIndexKey := event.CloudEventHeader.IndexKey()
+	expectedIndexKey := chindexer.CloudEventToObjectKey(&event.CloudEventHeader)
 	require.NoError(t, err)
 	require.Equal(t, expectedIndexKey, metadata.Data.Key)
 }

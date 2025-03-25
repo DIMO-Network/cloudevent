@@ -81,11 +81,10 @@ type RawEvent = CloudEvent[json.RawMessage]
 
 // Equals returns true if the two CloudEventHeaders share the same IndexKey.
 func (c *CloudEventHeader) Equals(other CloudEventHeader) bool {
-	return c.IndexKey() == other.IndexKey()
+	return c.Key() == other.Key()
 }
 
-// IndexKey returns the unique identifier for the CloudEvent.
-// Subject, Time, Type, Source, and ID are used to uniquely identify the CloudEvent.
-func (c CloudEventHeader) IndexKey() string {
+// Key returns the unique identifier for the CloudEvent.
+func (c CloudEventHeader) Key() string {
 	return c.Subject + ":" + c.Time.Format(time.RFC3339) + ":" + c.Type + ":" + c.Source + ":" + c.ID
 }

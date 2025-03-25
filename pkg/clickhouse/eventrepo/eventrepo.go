@@ -207,7 +207,7 @@ func (s *Service) GetObjectFromKey(ctx context.Context, key, bucketName string) 
 
 // StoreObject stores the given data in S3 with the given cloudevent header.
 func (s *Service) StoreObject(ctx context.Context, bucketName string, cloudHeader *cloudevent.CloudEventHeader, data []byte) error {
-	key := cloudHeader.IndexKey()
+	key := chindexer.CloudEventToObjectKey(cloudHeader)
 	_, err := s.objGetter.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: &bucketName,
 		Key:    &key,
@@ -234,7 +234,7 @@ func toCloudEvent(dbHdr *cloudevent.CloudEventHeader, data []byte) cloudevent.Cl
 	event := cloudevent.CloudEvent[json.RawMessage]{}
 	err := json.Unmarshal(data, &event)
 	emptyHdr := cloudevent.CloudEventHeader{}
-	if err == nil && !event.CloudEventHeader.Equals(emptyHdr) {
+	if err == nil && !event.Equals(emptyHdr) {
 		// if the data is already a cloud event we use the embedded data field
 		retData = event.Data
 	}

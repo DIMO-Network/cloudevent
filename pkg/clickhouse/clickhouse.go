@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/cloudevent"
+	"github.com/cespare/xxhash"
 )
 
 const (
@@ -45,12 +46,15 @@ const (
 		ExtrasColumn + ", " +
 		IndexKeyColumn +
 		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+
+	// hexChars contains the characters used for hex representation
+	hexChars = "0123456789abcdef"
 )
 
 // CloudEventToSlice converts a CloudEvent to an array of any for Clickhouse insertion.
 // The order of the elements in the array match the order of the columns in the table.
 func CloudEventToSlice(event *cloudevent.CloudEventHeader) []any {
-	return CloudEventToSliceWithKey(event, event.IndexKey())
+	return CloudEventToSliceWithKey(event, CloudEventToObjectKey(event))
 }
 
 // CloudEventToSliceWithKey converts a CloudEvent to an array of any for Clickhouse insertion.
@@ -132,4 +136,21 @@ func UnmarshalCloudEventSlice(jsonArray []byte) ([]any, error) {
 		return nil, fmt.Errorf("failed to unmarshal index key: %w", err)
 	}
 	return []any{subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey}, nil
+}
+
+// CloudEventToObjectKey generates a unique key for storing cloud events.
+// The key is composed of the event's key with a hex prefix derived from the hash of the key.
+func CloudEventToObjectKey(event *cloudevent.CloudEventHeader) string {
+	if event == nil {
+		return ""
+	}
+	key := event.Key()
+
+	// Hash the base key and extract the first hex digit
+	hash := xxhash.Sum64String(key)
+	firstDigit := hash >> 60 // Extract first hex digit by shifting right 60 bits (getting highest 4 bits)
+	hexPrefix := hexChars[firstDigit]
+
+	// Create final key with hex prefix
+	return string(hexPrefix) + key
 }
