@@ -7,7 +7,7 @@ require (
 	github.com/DIMO-Network/clickhouse-infra v0.0.3
 	github.com/aws/aws-sdk-go-v2 v1.32.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.71.1
-	github.com/cespare/xxhash v1.1.0
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/ethereum/go-ethereum v1.14.13
 	github.com/pressly/goose/v3 v3.24.0
 	github.com/stretchr/testify v1.10.0
