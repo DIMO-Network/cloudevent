@@ -68,6 +68,8 @@ func TestMigration(t *testing.T) {
 		localch.SubjectColumn,
 		localch.TimestampColumn,
 		localch.TypeColumn,
+		localch.SourceColumn,
+		localch.IDColumn,
 	}
 	assert.ElementsMatch(t, expectedOrderByCols, orderByCols, "Order by columns do not match")
 	// Close the DB connection
