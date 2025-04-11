@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS cloud_event (
     data_version String COMMENT 'Version of the data stored for this cloud event.',
 	extras String COMMENT 'Extra metadata for the cloud event',
     index_key String COMMENT 'Key of the backing object for this cloud event'
-) ENGINE = MergeTree()
+) ENGINE = ReplacingMergeTree()
 ORDER BY
     (subject, event_time, event_type, source, id) SETTINGS index_granularity = 8192;`,
 	}
