@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
@@ -390,6 +391,94 @@ func TestGetData(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetEventWithAllHeaderFields tests retrieving events with all header fields properly populated
+func TestGetEventWithAllHeaderFields(t *testing.T) {
+	chContainer := setupClickHouseContainer(t)
+
+	conn, err := chContainer.GetClickHouseAsConn()
+	require.NoError(t, err)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+
+	// Create a DID for the test
+	contractAddr := randAddress()
+	deviceTokenID := big.NewInt(1234567890)
+	did := cloudevent.NFTDID{
+		ChainID:         153,
+		ContractAddress: contractAddr,
+		TokenID:         deviceTokenID,
+	}
+
+	// Create event with all header fields populated
+	fullHeaderEvent := &cloudevent.CloudEventHeader{
+		ID:              "test-id-123456",
+		Source:          "test-source",
+		Producer:        "test-producer",
+		Subject:         did.String(),
+		Time:            now,
+		Type:            cloudevent.TypeStatus,
+		DataContentType: "application/json",
+		DataSchema:      "https://example.com/schemas/status.json",
+		DataVersion:     dataType,
+		SpecVersion:     cloudevent.SpecVersion,
+		Extras: map[string]any{
+			"extraField": "extra-value",
+		},
+	}
+
+	// Insert the event
+	indexKey := insertTestData(t, ctx, conn, fullHeaderEvent)
+
+	// Setup mock S3 client for retrieving the event data
+	ctrl := gomock.NewController(t)
+	mockS3Client := NewMockObjectGetter(ctrl)
+	eventData := []byte(`{"status": "online", "lastSeen": "2023-01-01T12:00:00Z"}`)
+	mockS3Client.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, params *s3.GetObjectInput, optFns ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+			// Verify the correct key was requested
+			require.Equal(t, indexKey, *params.Key)
+			return &s3.GetObjectOutput{
+				Body:          io.NopCloser(bytes.NewReader(eventData)),
+				ContentLength: ref(int64(len(eventData))),
+			}, nil
+		},
+	).AnyTimes()
+
+	// Create service
+	indexService := eventrepo.New(conn, mockS3Client)
+
+	// Test retrieving the event
+	t.Run("retrieve event with full headers", func(t *testing.T) {
+		opts := &eventrepo.SearchOptions{
+			DataVersion: &dataType,
+			Subject:     ref(did.String()),
+		}
+
+		retrievedEvent, err := indexService.GetLatestCloudEvent(ctx, "test-bucket", opts)
+		require.NoError(t, err)
+
+		// Verify all header fields
+		assert.Equal(t, fullHeaderEvent.ID, retrievedEvent.ID, "ID mismatch")
+		assert.Equal(t, fullHeaderEvent.Source, retrievedEvent.Source, "Source mismatch")
+		assert.Equal(t, fullHeaderEvent.Producer, retrievedEvent.Producer, "Producer mismatch")
+		assert.Equal(t, fullHeaderEvent.Subject, retrievedEvent.Subject, "Subject mismatch")
+		assert.Equal(t, fullHeaderEvent.Time.UTC().Truncate(time.Second), retrievedEvent.Time.UTC().Truncate(time.Second), "Time mismatch")
+		assert.Equal(t, fullHeaderEvent.Type, retrievedEvent.Type, "Type mismatch")
+		assert.Equal(t, fullHeaderEvent.DataContentType, retrievedEvent.DataContentType, "DataContentType mismatch")
+		assert.Equal(t, fullHeaderEvent.DataSchema, retrievedEvent.DataSchema, "DataSchema mismatch")
+		assert.Equal(t, fullHeaderEvent.DataVersion, retrievedEvent.DataVersion, "DataVersion mismatch")
+		assert.Equal(t, cloudevent.SpecVersion, retrievedEvent.SpecVersion, "SpecVersion mismatch")
+
+		// Verify extras
+		require.NotNil(t, retrievedEvent.Extras)
+		require.Equal(t, 1, len(retrievedEvent.Extras))
+		require.Equal(t, "extra-value", retrievedEvent.Extras["extraField"])
+
+		// Verify data content
+		require.Equal(t, string(eventData), string(retrievedEvent.Data))
+	})
 }
 
 func ref[T any](x T) *T {
