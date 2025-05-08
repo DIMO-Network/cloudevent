@@ -404,7 +404,7 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 
 	// Create a DID for the test
 	contractAddr := randAddress()
-	deviceTokenID := big.NewInt(1234567890)
+	deviceTokenID := uint32(1234567890)
 	did := cloudevent.NFTDID{
 		ChainID:         153,
 		ContractAddress: contractAddr,
