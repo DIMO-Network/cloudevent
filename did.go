@@ -186,3 +186,8 @@ func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
 		TokenID:         tokenID,
 	}, nil
 }
+
+// EncodeLegacyNFTDID is a legacy encoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1".
+func EncodeLegacyNFTDID(chainID uint64, contractAddress common.Address, tokenID *big.Int) string {
+	return "did:nft:" + strconv.FormatUint(chainID, 10) + ":" + contractAddress.Hex() + "_" + tokenID.String()
+}
