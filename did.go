@@ -15,6 +15,8 @@ const (
 	ERC721DIDMethod = "erc721"
 	// EthrDIDMethod is the method for a Ethereum Address DID.
 	EthrDIDMethod = "ethr"
+	// ERC20DIDMethod is the method for a ERC20 token DID.
+	ERC20DIDMethod = "erc20"
 )
 
 var errInvalidDID = errors.New("invalid DID")
@@ -65,6 +67,85 @@ func DecodeERC721DID(did string) (ERC721DID, error) {
 	}, nil
 }
 
+// String returns the string representation of the NFTDID.
+func (e ERC721DID) String() string {
+	return "did:" + ERC721DIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex() + ":" + e.TokenID.String()
+}
+
+// EthrDID is a Decentralized Identifier for an Ethereum contract.
+type EthrDID struct {
+	ChainID         uint64         `json:"chainId"`
+	ContractAddress common.Address `json:"contract"`
+}
+
+// DecodeEthrDID decodes a Ethr DID string into a DID struct.
+func DecodeEthrDID(did string) (EthrDID, error) {
+	chainID, contractAddress, err := decodeAddressDID(did, EthrDIDMethod)
+	if err != nil {
+		return EthrDID{}, err
+	}
+	return EthrDID{
+		ChainID:         chainID,
+		ContractAddress: contractAddress,
+	}, nil
+}
+
+// String returns the string representation of the EthrDID.
+func (e EthrDID) String() string {
+	return encodeAddressDID(EthrDIDMethod, e.ChainID, e.ContractAddress)
+}
+
+// ERC20DID is a Decentralized Identifier for an ERC20 token.
+type ERC20DID struct {
+	ChainID         uint64         `json:"chainId"`
+	ContractAddress common.Address `json:"contract"`
+}
+
+// DecodeERC20DID decodes a ERC20 DID string into a DID struct.
+func DecodeERC20DID(did string) (ERC20DID, error) {
+	chainID, contractAddress, err := decodeAddressDID(did, ERC20DIDMethod)
+	if err != nil {
+		return ERC20DID{}, err
+	}
+	return ERC20DID{
+		ChainID:         chainID,
+		ContractAddress: contractAddress,
+	}, nil
+}
+
+// String returns the string representation of the ERC20DID.
+func (e ERC20DID) String() string {
+	return encodeAddressDID(ERC20DIDMethod, e.ChainID, e.ContractAddress)
+}
+
+func decodeAddressDID(did string, method string) (uint64, common.Address, error) {
+	// sample did "did:method:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"
+	parts := strings.Split(did, ":")
+	if len(parts) != 4 {
+		return 0, common.Address{}, errInvalidDID
+	}
+	if parts[0] != "did" {
+		return 0, common.Address{}, fmt.Errorf("%w, wrong DID prefix %s", errInvalidDID, parts[0])
+	}
+	if parts[1] != method {
+		return 0, common.Address{}, fmt.Errorf("%w, wrong DID method %s", errInvalidDID, parts[1])
+	}
+	chainID, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return 0, common.Address{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
+	}
+	addrBytes := parts[3]
+	if !common.IsHexAddress(addrBytes) {
+		return 0, common.Address{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
+	}
+
+	return chainID, common.HexToAddress(addrBytes), nil
+}
+
+func encodeAddressDID(method string, chainID uint64, contractAddress common.Address) string {
+	return "did:" + method + ":" + strconv.FormatUint(chainID, 10) + ":" + contractAddress.Hex()
+}
+
 // DecodeLegacyNFTDID is a legacy decoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
 // You most likely want to use DecodeERC721DID instead.
 func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
@@ -104,48 +185,4 @@ func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
 		ContractAddress: common.HexToAddress(addrBytes),
 		TokenID:         tokenID,
 	}, nil
-}
-
-// String returns the string representation of the NFTDID.
-func (e ERC721DID) String() string {
-	return "did:" + ERC721DIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex() + ":" + e.TokenID.String()
-}
-
-// EthrDID is a Decentralized Identifier for an Ethereum contract.
-type EthrDID struct {
-	ChainID         uint64         `json:"chainId"`
-	ContractAddress common.Address `json:"contract"`
-}
-
-// DecodeEthrDID decodes a Ethr DID string into a DID struct.
-func DecodeEthrDID(did string) (EthrDID, error) {
-	// sample did "did:ethr:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"
-	parts := strings.Split(did, ":")
-	if len(parts) != 4 {
-		return EthrDID{}, errInvalidDID
-	}
-	if parts[0] != "did" {
-		return EthrDID{}, fmt.Errorf("%w, wrong DID prefix %s", errInvalidDID, parts[0])
-	}
-	if parts[1] != EthrDIDMethod {
-		return EthrDID{}, fmt.Errorf("%w, wrong DID method %s", errInvalidDID, parts[1])
-	}
-	chainID, err := strconv.ParseUint(parts[2], 10, 64)
-	if err != nil {
-		return EthrDID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
-	}
-	addrBytes := parts[3]
-	if !common.IsHexAddress(addrBytes) {
-		return EthrDID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
-	}
-
-	return EthrDID{
-		ChainID:         chainID,
-		ContractAddress: common.HexToAddress(addrBytes),
-	}, nil
-}
-
-// String returns the string representation of the EthrDID.
-func (e EthrDID) String() string {
-	return "did:" + EthrDIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex()
 }

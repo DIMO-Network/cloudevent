@@ -267,3 +267,106 @@ func TestEthrDID_String(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeERC20DID(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedDID   cloudevent.ERC20DID
+		expectedError bool
+	}{
+		{
+			name:  "valid DID",
+			input: "did:erc20:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
+			expectedDID: cloudevent.ERC20DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+		},
+		{
+			name:          "invalid format - wrong part count",
+			input:         "did:erc20:1",
+			expectedDID:   cloudevent.ERC20DID{},
+			expectedError: true,
+		},
+		{
+			name:          "invalid contract address",
+			input:         "did:erc20:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:extra",
+			expectedDID:   cloudevent.ERC20DID{},
+			expectedError: true,
+		},
+		{
+			name:          "invalid DID string - wrong prefix",
+			input:         "invalidprefix:erc20:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
+			expectedDID:   cloudevent.ERC20DID{},
+			expectedError: true,
+		},
+		{
+			name:          "invalid DID string - wrong method",
+			input:         "did:invalid:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
+			expectedDID:   cloudevent.ERC20DID{},
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			did, err := cloudevent.DecodeERC20DID(tt.input)
+
+			// Check if the error matches the expected error
+			if tt.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Check if the DID struct matches the expected DID
+			require.Equal(t, tt.expectedDID, did)
+		})
+	}
+}
+
+func TestERC20DID_String(t *testing.T) {
+	tests := []struct {
+		name     string
+		did      cloudevent.ERC20DID
+		expected string
+	}{
+		{
+			name: "valid ERC20 DID",
+			did: cloudevent.ERC20DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+			expected: "did:erc20:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
+		},
+		{
+			name: "ERC20 DID on mainnet",
+			did: cloudevent.ERC20DID{
+				ChainID:         1,
+				ContractAddress: common.HexToAddress("0x1234567890123456789012345678901234567890"),
+			},
+			expected: "did:erc20:1:0x1234567890123456789012345678901234567890",
+		},
+		{
+			name: "ERC20 DID with zero address",
+			did: cloudevent.ERC20DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
+			},
+			expected: "did:erc20:137:0x0000000000000000000000000000000000000000",
+		},
+		{
+			name:     "zero ERC20 DID",
+			did:      cloudevent.ERC20DID{},
+			expected: "did:erc20:0:0x0000000000000000000000000000000000000000",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.did.String()
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
