@@ -10,49 +10,96 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const (
+	// ERC721DIDMethod is the method for a ERC721 NFT DID.
+	ERC721DIDMethod = "erc721"
+	// EthrDIDMethod is the method for a Ethereum Address DID.
+	EthrDIDMethod = "ethr"
+)
+
 var errInvalidDID = errors.New("invalid DID")
 
-// NFTDID is a Decentralized Identifier for NFTs.
-type NFTDID struct {
+// ERC721DID is a Decentralized Identifier for a ERC721 NFT.
+type ERC721DID struct {
 	ChainID         uint64         `json:"chainId"`
 	ContractAddress common.Address `json:"contract"`
 	TokenID         *big.Int       `json:"tokenId"`
 }
 
-// DecodeNFTDID decodes a DID string into a DID struct.
-func DecodeNFTDID(did string) (NFTDID, error) {
-	// sample did "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
+// DecodeERC721DID decodes a DID string into a DID struct.
+func DecodeERC721DID(did string) (ERC721DID, error) {
+	// sample did "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
 	parts := strings.Split(did, ":")
-	if len(parts) != 4 {
-		return NFTDID{}, errInvalidDID
+	if len(parts) != 5 {
+		if len(parts) == 4 && parts[1] == "nft" {
+			return DecodeLegacyNFTDID(did)
+		}
+		return ERC721DID{}, errInvalidDID
 	}
 	if parts[0] != "did" {
-		return NFTDID{}, fmt.Errorf("%w, incorrect DID prefix %s", errInvalidDID, parts[0])
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID prefix %s", errInvalidDID, parts[0])
 	}
-	if parts[1] != "nft" {
-		return NFTDID{}, fmt.Errorf("%w, incorrect DID method %s", errInvalidDID, parts[1])
-	}
-	nftParts := strings.Split(parts[3], "_")
-	if len(nftParts) != 2 {
-		return NFTDID{}, fmt.Errorf("%w, incorrect NFT format %s", errInvalidDID, parts[3])
-	}
-	tokenID, ok := big.NewInt(0).SetString(nftParts[1], 10)
-	if !ok {
-		return NFTDID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
-	}
-	if tokenID.Sign() < 0 {
-		return NFTDID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, nftParts[1])
-	}
-	addrBytes := nftParts[0]
-	if !common.IsHexAddress(addrBytes) {
-		return NFTDID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
+	if parts[1] != ERC721DIDMethod {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID method %s", errInvalidDID, parts[1])
 	}
 	chainID, err := strconv.ParseUint(parts[2], 10, 64)
 	if err != nil {
-		return NFTDID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
+		return ERC721DID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
+	}
+	addrBytes := parts[3]
+	if !common.IsHexAddress(addrBytes) {
+		return ERC721DID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
+	}
+	tokenID, ok := big.NewInt(0).SetString(parts[4], 10)
+	if !ok {
+		return ERC721DID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, parts[4])
+	}
+	if tokenID.Sign() < 0 {
+		return ERC721DID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, parts[4])
 	}
 
-	return NFTDID{
+	return ERC721DID{
+		ChainID:         chainID,
+		ContractAddress: common.HexToAddress(addrBytes),
+		TokenID:         tokenID,
+	}, nil
+}
+
+// DecodeLegacyNFTDID is a legacy decoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
+// You most likely want to use DecodeERC721DID instead.
+func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
+	// sample did "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
+	parts := strings.Split(did, ":")
+	if len(parts) != 4 {
+		return ERC721DID{}, errInvalidDID
+	}
+	if parts[0] != "did" {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID prefix %s", errInvalidDID, parts[0])
+	}
+	if parts[1] != "nft" {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID method %s", errInvalidDID, parts[1])
+	}
+	nftParts := strings.Split(parts[3], "_")
+	if len(nftParts) != 2 {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect NFT format %s", errInvalidDID, parts[3])
+	}
+	tokenID, ok := big.NewInt(0).SetString(nftParts[1], 10)
+	if !ok {
+		return ERC721DID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
+	}
+	if tokenID.Sign() < 0 {
+		return ERC721DID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, nftParts[1])
+	}
+	addrBytes := nftParts[0]
+	if !common.IsHexAddress(addrBytes) {
+		return ERC721DID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
+	}
+	chainID, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return ERC721DID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
+	}
+
+	return ERC721DID{
 		ChainID:         chainID,
 		ContractAddress: common.HexToAddress(addrBytes),
 		TokenID:         tokenID,
@@ -60,8 +107,8 @@ func DecodeNFTDID(did string) (NFTDID, error) {
 }
 
 // String returns the string representation of the NFTDID.
-func (n NFTDID) String() string {
-	return fmt.Sprintf("did:nft:%d:%s_%d", n.ChainID, n.ContractAddress.Hex(), n.TokenID)
+func (e ERC721DID) String() string {
+	return "did:" + ERC721DIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex() + ":" + e.TokenID.String()
 }
 
 // EthrDID is a Decentralized Identifier for an Ethereum contract.
@@ -80,7 +127,7 @@ func DecodeEthrDID(did string) (EthrDID, error) {
 	if parts[0] != "did" {
 		return EthrDID{}, fmt.Errorf("%w, wrong DID prefix %s", errInvalidDID, parts[0])
 	}
-	if parts[1] != "ethr" {
+	if parts[1] != EthrDIDMethod {
 		return EthrDID{}, fmt.Errorf("%w, wrong DID method %s", errInvalidDID, parts[1])
 	}
 	chainID, err := strconv.ParseUint(parts[2], 10, 64)
@@ -100,5 +147,5 @@ func DecodeEthrDID(did string) (EthrDID, error) {
 
 // String returns the string representation of the EthrDID.
 func (e EthrDID) String() string {
-	return fmt.Sprintf("did:ethr:%d:%s", e.ChainID, e.ContractAddress.Hex())
+	return "did:" + EthrDIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex()
 }

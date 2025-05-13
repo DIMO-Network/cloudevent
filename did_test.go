@@ -13,13 +13,22 @@ func TestDecodeDID(t *testing.T) {
 	tests := []struct {
 		name          string
 		input         string
-		expectedDID   cloudevent.NFTDID
+		expectedDID   cloudevent.ERC721DID
 		expectedError bool
 	}{
 		{
 			name:  "valid DID",
+			input: "did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123",
+			expectedDID: cloudevent.ERC721DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+				TokenID:         big.NewInt(123),
+			},
+		},
+		{
+			name:  "valid legacy DID",
 			input: "did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123",
-			expectedDID: cloudevent.NFTDID{
+			expectedDID: cloudevent.ERC721DID{
 				ChainID:         137,
 				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
 				TokenID:         big.NewInt(123),
@@ -27,39 +36,45 @@ func TestDecodeDID(t *testing.T) {
 		},
 		{
 			name:          "invalid format - wrong part count",
-			input:         "did:nft:1",
-			expectedDID:   cloudevent.NFTDID{},
+			input:         "did:erc721:1",
+			expectedDID:   cloudevent.ERC721DID{},
 			expectedError: true,
 		},
 		{
 			name:          "invalid format - wrong token part count",
-			input:         "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
-			expectedDID:   cloudevent.NFTDID{},
+			input:         "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF",
+			expectedDID:   cloudevent.ERC721DID{},
 			expectedError: true,
 		},
 		{
 			name:          "invalid tokenID",
-			input:         "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_notanumber",
-			expectedDID:   cloudevent.NFTDID{},
+			input:         "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:notanumber",
+			expectedDID:   cloudevent.ERC721DID{},
 			expectedError: true,
 		},
 		{
 			name:          "negative tokenID",
-			input:         "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_-123",
-			expectedDID:   cloudevent.NFTDID{},
+			input:         "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:-123",
+			expectedDID:   cloudevent.ERC721DID{},
 			expectedError: true,
 		},
 		{
 			name:          "invalid DID string - wrong prefix",
-			input:         "invalidprefix:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1",
-			expectedDID:   cloudevent.NFTDID{},
+			input:         "invalidprefix:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:1",
+			expectedDID:   cloudevent.ERC721DID{},
+			expectedError: true,
+		},
+		{
+			name:          "invalid DID string - wrong method",
+			input:         "did:invalid:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:1",
+			expectedDID:   cloudevent.ERC721DID{},
 			expectedError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			did, err := cloudevent.DecodeNFTDID(tt.input)
+			did, err := cloudevent.DecodeERC721DID(tt.input)
 
 			// Check if the error matches the expected error
 			if tt.expectedError {
@@ -97,7 +112,7 @@ func TestDecodeEthrDID(t *testing.T) {
 		},
 		{
 			name:          "invalid contract address",
-			input:         "did:ethr:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_notanumber",
+			input:         "did:ethr:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:notanumber",
 			expectedDID:   cloudevent.EthrDID{},
 			expectedError: true,
 		},
@@ -126,69 +141,69 @@ func TestDecodeEthrDID(t *testing.T) {
 	}
 }
 
-func TestNFTDID_String(t *testing.T) {
+func TestERC721DID_String(t *testing.T) {
 	tests := []struct {
 		name     string
-		did      cloudevent.NFTDID
+		did      cloudevent.ERC721DID
 		expected string
 	}{
 		{
-			name: "valid NFT DID",
-			did: cloudevent.NFTDID{
+			name: "valid ERC721 DID",
+			did: cloudevent.ERC721DID{
 				ChainID:         137,
 				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
 				TokenID:         big.NewInt(123),
 			},
-			expected: "did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123",
+			expected: "did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123",
 		},
 		{
-			name: "NFT DID with zero token ID",
-			did: cloudevent.NFTDID{
+			name: "ERC721 DID with zero token ID",
+			did: cloudevent.ERC721DID{
 				ChainID:         1,
 				ContractAddress: common.HexToAddress("0x1234567890123456789012345678901234567890"),
 				TokenID:         big.NewInt(0),
 			},
-			expected: "did:nft:1:0x1234567890123456789012345678901234567890_0",
+			expected: "did:erc721:1:0x1234567890123456789012345678901234567890:0",
 		},
 		{
-			name: "NFT DID with zero value token ID",
-			did: cloudevent.NFTDID{
+			name: "ERC721 DID with zero value token ID",
+			did: cloudevent.ERC721DID{
 				ChainID:         1,
 				ContractAddress: common.HexToAddress("0x1234567890123456789012345678901234567890"),
 			},
-			expected: "did:nft:1:0x1234567890123456789012345678901234567890_<nil>",
+			expected: "did:erc721:1:0x1234567890123456789012345678901234567890:<nil>",
 		},
 		{
-			name: "NFT DID with large token ID",
-			did: cloudevent.NFTDID{
+			name: "ERC721 DID with large token ID",
+			did: cloudevent.ERC721DID{
 				ChainID:         137,
 				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
 				TokenID:         big.NewInt(1234567890123456789),
 			},
-			expected: "did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1234567890123456789",
+			expected: "did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:1234567890123456789",
 		},
 		{
-			name:     "zero NFT DID",
-			did:      cloudevent.NFTDID{},
-			expected: "did:nft:0:0x0000000000000000000000000000000000000000_<nil>",
+			name:     "zero ERC721 DID",
+			did:      cloudevent.ERC721DID{},
+			expected: "did:erc721:0:0x0000000000000000000000000000000000000000:<nil>",
 		},
 		{
-			name: "NFT DID with zero chain ID",
-			did: cloudevent.NFTDID{
+			name: "ERC721 DID with zero chain ID",
+			did: cloudevent.ERC721DID{
 				ChainID:         0,
 				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
 				TokenID:         big.NewInt(123),
 			},
-			expected: "did:nft:0:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123",
+			expected: "did:erc721:0:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123",
 		},
 		{
-			name: "NFT DID with zero address",
-			did: cloudevent.NFTDID{
+			name: "ERC721 DID with zero address",
+			did: cloudevent.ERC721DID{
 				ChainID:         137,
 				ContractAddress: common.HexToAddress("0x0000000000000000000000000000000000000000"),
 				TokenID:         big.NewInt(123),
 			},
-			expected: "did:nft:137:0x0000000000000000000000000000000000000000_123",
+			expected: "did:erc721:137:0x0000000000000000000000000000000000000000:123",
 		},
 	}
 
