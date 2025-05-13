@@ -35,12 +35,12 @@ func TestMigration(t *testing.T) {
 	err = migrations.RunGoose(ctx, []string{"up", "-v"}, db)
 	require.NoError(t, err, "Failed to run migration")
 	hdr := cloudevent.CloudEventHeader{
-		Subject:     cloudevent.NFTDID{ChainID: 2, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
+		Subject:     cloudevent.ERC721DID{ChainID: 2, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
 		Time:        time.Now(),
 		Type:        cloudevent.TypeStatus,
 		Source:      common.HexToAddress("0xb57d6d57fca59d0517038c968a1b831b071fa679").String(),
 		DataVersion: "Stat/2.0.0",
-		Producer:    cloudevent.NFTDID{ChainID: 3, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
+		Producer:    cloudevent.ERC721DID{ChainID: 3, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
 	}
 	err = insertIndex(conn, hdr)
 	require.NoError(t, err, "Failed to insert new index")

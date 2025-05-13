@@ -77,7 +77,7 @@ func TestGetLatestIndexKey(t *testing.T) {
 
 	// Create test indices
 	eventIdx1 := &cloudevent.CloudEventHeader{
-		Subject: cloudevent.NFTDID{
+		Subject: cloudevent.ERC721DID{
 			ChainID:         153,
 			ContractAddress: contractAddr,
 			TokenID:         device1TokenID,
@@ -87,7 +87,7 @@ func TestGetLatestIndexKey(t *testing.T) {
 	}
 
 	eventIdx2 := &cloudevent.CloudEventHeader{
-		Subject: cloudevent.NFTDID{
+		Subject: cloudevent.ERC721DID{
 			ChainID:         153,
 			ContractAddress: contractAddr,
 			TokenID:         device1TokenID,
@@ -102,13 +102,13 @@ func TestGetLatestIndexKey(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		subject       cloudevent.NFTDID
+		subject       cloudevent.ERC721DID
 		expectedKey   string
 		expectedError bool
 	}{
 		{
 			name: "valid latest object",
-			subject: cloudevent.NFTDID{
+			subject: cloudevent.ERC721DID{
 				ChainID:         153,
 				ContractAddress: contractAddr,
 				TokenID:         device1TokenID,
@@ -117,7 +117,7 @@ func TestGetLatestIndexKey(t *testing.T) {
 		},
 		{
 			name: "no records",
-			subject: cloudevent.NFTDID{
+			subject: cloudevent.ERC721DID{
 				ChainID:         153,
 				ContractAddress: contractAddr,
 				TokenID:         device2TokenID,
@@ -158,7 +158,7 @@ func TestGetDataFromIndex(t *testing.T) {
 	ctx := context.Background()
 
 	eventIdx := &cloudevent.CloudEventHeader{
-		Subject: cloudevent.NFTDID{
+		Subject: cloudevent.ERC721DID{
 			ChainID:         153,
 			ContractAddress: contractAddr,
 			TokenID:         device1TokenID,
@@ -171,13 +171,13 @@ func TestGetDataFromIndex(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		subject         cloudevent.NFTDID
+		subject         cloudevent.ERC721DID
 		expectedContent []byte
 		expectedError   bool
 	}{
 		{
 			name: "valid object content",
-			subject: cloudevent.NFTDID{
+			subject: cloudevent.ERC721DID{
 				ChainID:         153,
 				ContractAddress: contractAddr,
 				TokenID:         device1TokenID,
@@ -186,7 +186,7 @@ func TestGetDataFromIndex(t *testing.T) {
 		},
 		{
 			name: "no records",
-			subject: cloudevent.NFTDID{
+			subject: cloudevent.ERC721DID{
 				ChainID:         153,
 				ContractAddress: contractAddr,
 				TokenID:         device2TokenID,
@@ -237,7 +237,7 @@ func TestStoreObject(t *testing.T) {
 	indexService := eventrepo.New(conn, mockS3Client)
 
 	content := []byte(`{"vin": "1HGCM82633A123456"}`)
-	did := cloudevent.NFTDID{
+	did := cloudevent.ERC721DID{
 		ChainID:         153,
 		ContractAddress: randAddress(),
 		TokenID:         big.NewInt(123456),
@@ -279,7 +279,7 @@ func TestGetData(t *testing.T) {
 	device2TokenID := big.NewInt(654321)
 	ctx := context.Background()
 	now := time.Now()
-	eventDID := cloudevent.NFTDID{
+	eventDID := cloudevent.ERC721DID{
 		ChainID:         153,
 		ContractAddress: contractAddr,
 		TokenID:         device1TokenID,
@@ -287,7 +287,7 @@ func TestGetData(t *testing.T) {
 	eventIdx := cloudevent.CloudEventHeader{
 		Subject: eventDID.String(),
 		Time:    now.Add(-4 * time.Hour),
-		Producer: cloudevent.NFTDID{
+		Producer: cloudevent.ERC721DID{
 			ChainID:         153,
 			ContractAddress: contractAddr,
 			TokenID:         device1TokenID,
@@ -327,7 +327,7 @@ func TestGetData(t *testing.T) {
 			name: "no records with address",
 			opts: &eventrepo.SearchOptions{
 				DataVersion: &dataType,
-				Subject: ref(cloudevent.NFTDID{
+				Subject: ref(cloudevent.ERC721DID{
 					ChainID:         153,
 					ContractAddress: contractAddr,
 					TokenID:         device2TokenID,
@@ -406,7 +406,7 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 	// Create a DID for the test
 	contractAddr := randAddress()
 	deviceTokenID := big.NewInt(1234567890)
-	did := cloudevent.NFTDID{
+	did := cloudevent.ERC721DID{
 		ChainID:         153,
 		ContractAddress: contractAddr,
 		TokenID:         deviceTokenID,
