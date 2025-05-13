@@ -60,7 +60,10 @@ func CloudEventToSlice(event *cloudevent.CloudEventHeader) []any {
 // CloudEventToSliceWithKey converts a CloudEvent to an array of any for Clickhouse insertion.
 // The order of the elements in the array match the order of the columns in the table.
 func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []any {
-	jsonExtra, _ := json.Marshal(event.Extras)
+	// Add non-column fields to extras
+	extras := AddNonColumnFieldsToExtras(event)
+
+	jsonExtra, _ := json.Marshal(extras)
 	return []any{
 		event.Subject,
 		event.Time,

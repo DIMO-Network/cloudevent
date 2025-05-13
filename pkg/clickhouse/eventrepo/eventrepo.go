@@ -98,11 +98,13 @@ func (s *Service) ListIndexes(ctx context.Context, limit int, opts *SearchOption
 			_ = rows.Close()
 			return nil, fmt.Errorf("failed to scan cloud event: %w", err)
 		}
-		if extras != "" {
+		if extras != "" && extras != "null" {
 			if err = json.Unmarshal([]byte(extras), &event.Extras); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("failed to unmarshal extras: %w", err)
 			}
+			// Restore non-column fields from extras
+			chindexer.RestoreNonColumnFields(&event.CloudEventHeader)
 		}
 		cloudEvents = append(cloudEvents, event)
 	}
@@ -303,9 +305,8 @@ func (o *SearchOptions) QueryMods() ([]qm.QueryMod, error) {
 }
 
 var dialect = drivers.Dialect{
-	LQ: '`',
-	RQ: '`',
-
+	LQ:                      '`',
+	RQ:                      '`',
 	UseIndexPlaceholders:    false,
 	UseLastInsertID:         false,
 	UseSchema:               false,
