@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"math/big"
 	"testing"
 	"time"
 
@@ -69,8 +70,8 @@ func TestGetLatestIndexKey(t *testing.T) {
 	conn, err := chContainer.GetClickHouseAsConn()
 	require.NoError(t, err)
 	contractAddr := randAddress()
-	device1TokenID := uint32(1234567890)
-	device2TokenID := uint32(976543210)
+	device1TokenID := big.NewInt(1234567890)
+	device2TokenID := big.NewInt(976543210)
 	ctx := context.Background()
 	now := time.Now()
 
@@ -149,8 +150,8 @@ func TestGetLatestIndexKey(t *testing.T) {
 func TestGetDataFromIndex(t *testing.T) {
 	chContainer := setupClickHouseContainer(t)
 	contractAddr := randAddress()
-	device1TokenID := uint32(1234567890)
-	device2TokenID := uint32(976543210)
+	device1TokenID := big.NewInt(1234567890)
+	device2TokenID := big.NewInt(976543210)
 
 	conn, err := chContainer.GetClickHouseAsConn()
 	require.NoError(t, err)
@@ -239,7 +240,7 @@ func TestStoreObject(t *testing.T) {
 	did := cloudevent.NFTDID{
 		ChainID:         153,
 		ContractAddress: randAddress(),
-		TokenID:         123456,
+		TokenID:         big.NewInt(123456),
 	}
 
 	event := cloudevent.CloudEvent[json.RawMessage]{
@@ -274,8 +275,8 @@ func TestGetData(t *testing.T) {
 	require.NoError(t, err)
 	source1 := randAddress()
 	contractAddr := randAddress()
-	device1TokenID := uint32(123456)
-	device2TokenID := uint32(654321)
+	device1TokenID := big.NewInt(123456)
+	device2TokenID := big.NewInt(654321)
 	ctx := context.Background()
 	now := time.Now()
 	eventDID := cloudevent.NFTDID{
@@ -404,7 +405,7 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 
 	// Create a DID for the test
 	contractAddr := randAddress()
-	deviceTokenID := uint32(1234567890)
+	deviceTokenID := big.NewInt(1234567890)
 	did := cloudevent.NFTDID{
 		ChainID:         153,
 		ContractAddress: contractAddr,

@@ -3,6 +3,7 @@ package cloudevent
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -15,7 +16,7 @@ var errInvalidDID = errors.New("invalid DID")
 type NFTDID struct {
 	ChainID         uint64         `json:"chainId"`
 	ContractAddress common.Address `json:"contract"`
-	TokenID         uint32         `json:"tokenId"`
+	TokenID         *big.Int       `json:"tokenId"`
 }
 
 // DecodeNFTDID decodes a DID string into a DID struct.
@@ -35,9 +36,12 @@ func DecodeNFTDID(did string) (NFTDID, error) {
 	if len(nftParts) != 2 {
 		return NFTDID{}, fmt.Errorf("%w, incorrect NFT format %s", errInvalidDID, parts[3])
 	}
-	tokenID, err := strconv.ParseUint(nftParts[1], 10, 32)
-	if err != nil {
+	tokenID, ok := big.NewInt(0).SetString(nftParts[1], 10)
+	if !ok {
 		return NFTDID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
+	}
+	if tokenID.Sign() < 0 {
+		return NFTDID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, nftParts[1])
 	}
 	addrBytes := nftParts[0]
 	if !common.IsHexAddress(addrBytes) {
@@ -51,7 +55,7 @@ func DecodeNFTDID(did string) (NFTDID, error) {
 	return NFTDID{
 		ChainID:         chainID,
 		ContractAddress: common.HexToAddress(addrBytes),
-		TokenID:         uint32(tokenID),
+		TokenID:         tokenID,
 	}, nil
 }
 
