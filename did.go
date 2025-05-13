@@ -40,6 +40,9 @@ func DecodeNFTDID(did string) (NFTDID, error) {
 	if !ok {
 		return NFTDID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
 	}
+	if tokenID.Sign() < 0 {
+		return NFTDID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, nftParts[1])
+	}
 	addrBytes := nftParts[0]
 	if !common.IsHexAddress(addrBytes) {
 		return NFTDID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)

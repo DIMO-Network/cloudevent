@@ -44,6 +44,12 @@ func TestDecodeDID(t *testing.T) {
 			expectedError: true,
 		},
 		{
+			name:          "negative tokenID",
+			input:         "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_-123",
+			expectedDID:   cloudevent.NFTDID{},
+			expectedError: true,
+		},
+		{
 			name:          "invalid DID string - wrong prefix",
 			input:         "invalidprefix:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1",
 			expectedDID:   cloudevent.NFTDID{},
