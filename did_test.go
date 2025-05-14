@@ -80,6 +80,7 @@ func TestDecodeDID(t *testing.T) {
 			// Check if the error matches the expected error
 			if tt.expectedError {
 				require.Error(t, err)
+				return
 			} else {
 				require.NoError(t, err)
 			}
