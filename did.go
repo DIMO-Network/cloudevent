@@ -30,12 +30,9 @@ type ERC721DID struct {
 
 // DecodeERC721DID decodes a DID string into a DID struct.
 func DecodeERC721DID(did string) (ERC721DID, error) {
-	// sample did "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
+	// sample did "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:1"
 	parts := strings.Split(did, ":")
 	if len(parts) != 5 {
-		if len(parts) == 4 && parts[1] == "nft" {
-			return DecodeLegacyNFTDID(did)
-		}
 		return ERC721DID{}, errInvalidDID
 	}
 	if parts[0] != "did" {
@@ -144,6 +141,15 @@ func decodeAddressDID(did string, method string) (uint64, common.Address, error)
 
 func encodeAddressDID(method string, chainID uint64, contractAddress common.Address) string {
 	return "did:" + method + ":" + strconv.FormatUint(chainID, 10) + ":" + contractAddress.Hex()
+}
+
+// DecodeERC721orNFTDID is a decoder that attempts to decode a DID string into an ERC721DID or a legacy NFT DID.
+func DecodeERC721orNFTDID(did string) (ERC721DID, error) {
+	parts := strings.Split(did, ":")
+	if len(parts) == 5 {
+		return DecodeERC721DID(did)
+	}
+	return DecodeLegacyNFTDID(did)
 }
 
 // DecodeLegacyNFTDID is a legacy decoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"

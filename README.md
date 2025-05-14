@@ -39,9 +39,9 @@ When working with DIMO services, your CloudEvent payload should follow this form
 {
   "id": "unique-event-identifier",
   "source": "0xEthereumAddress",
-  "producer": "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_42",
+  "producer": "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:42",
   "specversion": "1.0",
-  "subject": "did:nft:1:0x123456789abcdef0123456789abcdef012345678_123",
+  "subject": "did:erc721:1:0x123456789abcdef0123456789abcdef012345678:42",
   "time": "2025-03-04T12:00:00Z",
   "type": "dimo.status",
   "datacontenttype": "application/json",
@@ -77,9 +77,9 @@ Each CloudEvent contains the following header fields:
 | --------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | ID              | A unique identifier for the event. The combination of ID and Source must be unique.                                       |
 | Source          | Typically an Ethereum address. In many DIMO services                                                                      |
-| Producer        | The DID of the entity that produced the payload. Ex. `did:nft:<chainId>:<contractAddress>_<tokenId>`.                     |
+| Producer        | The DID of the entity that produced the payload. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                  |
 | SpecVersion     | The version of CloudEvents specification used. This is always hardcoded as "1.0".                                         |
-| Subject         | The DID which denotes the subject of the event. Ex. `did:nft:<chainId>:<contractAddress>_<tokenId>`.                      |
+| Subject         | The DID which denotes the subject of the event. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                   |
 | Time            | The time at which the event occurred. Format as RFC3339 timestamp.                                                        |
 | Type            | Describes the type of event - must be one of the predefined DIMO types.                                                   |
 | DataContentType | The MIME type for the data field. When using JSON (the most common case), this should be "application/json".              |
@@ -124,10 +124,10 @@ The library provides support for two types of DIDs:
 The NFT DID format is used to identify NFTs on a blockchain:
 
 ```
-did:nft:<chainID>:<contractAddress>_<tokenID>
+did:erc721:<chainID>:<contractAddress>:<tokenID>
 ```
 
-Example: `did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123`
+Example: `did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123`
 
 - `chainID`: The blockchain network ID (e.g., 1 for Ethereum mainnet, 137 for Polygon)
 - `contractAddress`: Ethereum hex address of the NFT contract
@@ -155,15 +155,15 @@ event := cloudevent.CloudEvent[MyDataType]{
     CloudEventHeader: cloudevent.CloudEventHeader{
         ID:             "unique-id",
         Source:         "0xConnectionLicenseAddress",
-        Producer:       cloudevent.NFTDID{
+        Producer:       cloudevent.ERC721DID{
           ChainID: 1,
           ContractAddress: "0x123456789abcdef0123456789abcdef012345678",
-          TokenID: 123,
+          TokenID: big.NewInt(123),
         }.String(),
-        Subject:         cloudevent.NFTDID{
+        Subject:         cloudevent.ERC721DID{
           ChainID: 1,
           ContractAddress: "0x123456789abcdef0123456789abcdef012345678",
-          TokenID: 123,
+          TokenID: big.NewInt(123),
         }.String(),
         Time:           time.Now().UTC(),
         Type:           cloudevent.TypeStatus,
@@ -180,7 +180,7 @@ event := cloudevent.CloudEvent[MyDataType]{
 
 ```go
 // Parse an NFT DID
-nftDID, err := cloudevent.DecodeNFTDID("did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123")
+nftDID, err := cloudevent.DecodeERC721DID("did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123")
 if err != nil {
     // Handle error
 }
