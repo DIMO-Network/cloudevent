@@ -33,6 +33,7 @@ func TestDecodeDID(t *testing.T) {
 				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
 				TokenID:         big.NewInt(123),
 			},
+			expectedError: true,
 		},
 		{
 			name:          "invalid format - wrong part count",
@@ -75,6 +76,55 @@ func TestDecodeDID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			did, err := cloudevent.DecodeERC721DID(tt.input)
+
+			// Check if the error matches the expected error
+			if tt.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Check if the DID struct matches the expected DID
+			require.Equal(t, tt.expectedDID, did)
+		})
+	}
+}
+
+func TestDecodeERC721orNFTDID(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedDID   cloudevent.ERC721DID
+		expectedError bool
+	}{
+		{
+			name:  "valid DID",
+			input: "did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123",
+			expectedDID: cloudevent.ERC721DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+				TokenID:         big.NewInt(123),
+			},
+		},
+		{
+			name:  "valid legacy DID",
+			input: "did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123",
+			expectedDID: cloudevent.ERC721DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+				TokenID:         big.NewInt(123),
+			},
+		},
+		{
+			name:          "invalid format - wrong part count",
+			input:         "did:erc721:1",
+			expectedDID:   cloudevent.ERC721DID{},
+			expectedError: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			did, err := cloudevent.DecodeERC721orNFTDID(tt.input)
 
 			// Check if the error matches the expected error
 			if tt.expectedError {
