@@ -119,9 +119,9 @@ DIMO services expect the `Type` field to be one of these predefined types. Using
 
 The library provides support for two types of DIDs:
 
-### NFT DID
+### ERC721 DID
 
-The NFT DID format is used to identify NFTs on a blockchain:
+The ERC721 DID format is used to identify ERC721 tokens on a blockchain:
 
 ```
 did:erc721:<chainID>:<contractAddress>:<tokenID>
@@ -179,14 +179,14 @@ event := cloudevent.CloudEvent[MyDataType]{
 ### Working with DIDs
 
 ```go
-// Parse an NFT DID
-nftDID, err := cloudevent.DecodeERC721DID("did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123")
+// Parse an ERC721 DID
+erc721DID, err := cloudevent.DecodeERC721DID("did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123")
 if err != nil {
     // Handle error
 }
 
 // Convert back to string
-didString := nftDID.String()
+didString := erc721DID.String()
 ```
 
 ## Development

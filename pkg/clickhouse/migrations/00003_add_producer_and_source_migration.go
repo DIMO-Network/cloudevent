@@ -85,13 +85,13 @@ FROM name_index;
 var addProducerAndSourceCreateStmt = `
 CREATE TABLE IF NOT EXISTS name_index_tmp
 (
-    subject FixedString(64) COMMENT 'represents the NFT DID of the subject of the event ChainId+ContractAddress+TokenId.',
+    subject FixedString(64) COMMENT 'represents the DID of the subject of the event ChainId+ContractAddress+TokenId.',
     timestamp DateTime('UTC') COMMENT 'Combined date and time in UTC with millisecond precision.',
     primary_filler FixedString(2) COMMENT 'Primary filler, a constant string of length 2.',
 	source FixedString(40) COMMENT 'represents the address of the source of the event.',
     data_type FixedString(20) COMMENT 'Data type left-padded with zeros or truncated to 20 characters.',
     secondary_filler FixedString(2) COMMENT 'Secondary filler, a constant string of length 2.',
-	producer FixedString(64) COMMENT 'represents the NFT DID of the producer of the event ChainId+ContractAddress+TokenId.',
+	producer FixedString(64) COMMENT 'represents the DID of the producer of the event ChainId+ContractAddress+TokenId.',
 	file_name String COMMENT 'Name of the file that the data was collected from.',
 )
 ENGINE = MergeTree()
