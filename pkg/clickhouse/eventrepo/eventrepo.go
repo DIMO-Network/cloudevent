@@ -277,6 +277,9 @@ func (o *SearchOptions) QueryMods() ([]qm.QueryMod, error) {
 		return nil, nil
 	}
 	var mods []qm.QueryMod
+	if o.ID != nil {
+		mods = append(mods, qm.Where(chindexer.IDColumn+" = ?", *o.ID))
+	}
 	if !o.After.IsZero() {
 		mods = append(mods, qm.Where(chindexer.TimestampColumn+" > ?", o.After))
 	}
