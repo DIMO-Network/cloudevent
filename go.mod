@@ -5,12 +5,12 @@ go 1.24
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
 	github.com/DIMO-Network/clickhouse-infra v0.0.3
-	github.com/DIMO-Network/model-garage v0.5.6
+	github.com/DIMO-Network/model-garage v0.6.0
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.79.3
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/ethereum/go-ethereum v1.15.11
-	github.com/pressly/goose/v3 v3.24.1
+	github.com/pressly/goose/v3 v3.24.3
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/volatiletech/sqlboiler/v4 v4.19.0
@@ -52,7 +52,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mdelapenya/tlscert v0.1.0 // indirect
@@ -82,7 +82,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.33.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
@@ -97,15 +97,15 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.35.0 // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
-	golang.org/x/tools v0.30.0 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/mod v0.24.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/tools v0.32.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250102185135-69823020774d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250102185135-69823020774d // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
