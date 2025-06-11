@@ -489,8 +489,9 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 
 		// Verify extras
 		require.NotNil(t, retrievedEvent.Extras)
-		require.Equal(t, 1, len(retrievedEvent.Extras))
+		require.Equal(t, 2, len(retrievedEvent.Extras))
 		require.Equal(t, "extra-value", retrievedEvent.Extras["extraField"])
+		require.Equal(t, fullHeaderEvent.Signature, retrievedEvent.Extras["signature"].(string))
 
 		// Verify data content
 		require.Equal(t, string(eventData), string(retrievedEvent.Data))
