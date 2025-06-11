@@ -69,6 +69,21 @@ func (e ERC721DID) String() string {
 	return "did:" + ERC721DIDMethod + ":" + strconv.FormatUint(e.ChainID, 10) + ":" + e.ContractAddress.Hex() + ":" + e.TokenID.String()
 }
 
+// MarshalText implements encoding.TextMarshaler
+func (e ERC721DID) MarshalText() ([]byte, error) {
+	return []byte(e.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (e *ERC721DID) UnmarshalText(text []byte) error {
+	did, err := DecodeERC721DID(string(text))
+	if err != nil {
+		return err
+	}
+	*e = did
+	return nil
+}
+
 // EthrDID is a Decentralized Identifier for an Ethereum contract.
 type EthrDID struct {
 	ChainID         uint64         `json:"chainId"`
@@ -92,6 +107,21 @@ func (e EthrDID) String() string {
 	return encodeAddressDID(EthrDIDMethod, e.ChainID, e.ContractAddress)
 }
 
+// MarshalText implements encoding.TextMarshaler
+func (e EthrDID) MarshalText() ([]byte, error) {
+	return []byte(e.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (e *EthrDID) UnmarshalText(text []byte) error {
+	did, err := DecodeEthrDID(string(text))
+	if err != nil {
+		return err
+	}
+	*e = did
+	return nil
+}
+
 // ERC20DID is a Decentralized Identifier for an ERC20 token.
 type ERC20DID struct {
 	ChainID         uint64         `json:"chainId"`
@@ -113,6 +143,21 @@ func DecodeERC20DID(did string) (ERC20DID, error) {
 // String returns the string representation of the ERC20DID.
 func (e ERC20DID) String() string {
 	return encodeAddressDID(ERC20DIDMethod, e.ChainID, e.ContractAddress)
+}
+
+// MarshalText implements encoding.TextMarshaler
+func (e ERC20DID) MarshalText() ([]byte, error) {
+	return []byte(e.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler
+func (e *ERC20DID) UnmarshalText(text []byte) error {
+	did, err := DecodeERC20DID(string(text))
+	if err != nil {
+		return err
+	}
+	*e = did
+	return nil
 }
 
 func decodeAddressDID(did string, method string) (uint64, common.Address, error) {

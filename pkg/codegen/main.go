@@ -35,6 +35,8 @@ type FieldInfo struct {
 	JSONName string
 	// TypeName is the type of the field as a string.
 	TypeName string
+	// Options contains the options for the field generation.
+	Options Options
 }
 
 // TemplateData contains all the data needed for template generation.
@@ -56,11 +58,11 @@ func main() {
 	for i := 0; i < headerType.NumField(); i++ {
 		field := headerType.Field(i)
 
-		jsonTag := field.Tag.Get("json")
-		jsonName := getJSONFieldName(jsonTag)
+		jsonName := getJSONFieldName(field)
 		if jsonName == "" {
 			continue
 		}
+		genOptions := getCloudEventOptions(field)
 		// Skip defined column fields
 		if _, ok := CloudeventHeadersToColumnMap[jsonName]; ok {
 			continue
@@ -70,6 +72,7 @@ func main() {
 			FieldName: field.Name,
 			JSONName:  jsonName,
 			TypeName:  field.Type.String(),
+			Options:   genOptions,
 		})
 	}
 
@@ -103,7 +106,8 @@ func main() {
 }
 
 // getJSONFieldName extracts the JSON field name from a struct field tag
-func getJSONFieldName(tag string) string {
+func getJSONFieldName(field reflect.StructField) string {
+	tag := field.Tag.Get("json")
 	if tag == "" {
 		return ""
 	}
@@ -118,6 +122,28 @@ func getJSONFieldName(tag string) string {
 	}
 
 	return name
+}
+
+type Options struct {
+	// LeaveInExtras indicates that the field should be left in the Extras map.
+	LeaveInExtras bool
+}
+
+// getCloudEventOptions extracts the CloudEventOptions from a struct field tag
+func getCloudEventOptions(field reflect.StructField) Options {
+	opts := Options{}
+	tag := field.Tag.Get("cloudevent")
+	if tag == "" {
+		return opts
+	}
+	optValues := strings.Split(tag, ",")
+	for _, opt := range optValues {
+		switch opt {
+		case "leaveInExtras":
+			opts.LeaveInExtras = true
+		}
+	}
+	return opts
 }
 
 // Define the template for the generated code
@@ -146,16 +172,22 @@ func RestoreNonColumnFields(event *cloudevent.CloudEventHeader) {
 		if timeStr, ok := val.(string); ok {
 			if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
 				event.{{ .FieldName }} = t
-				delete(event.Extras, "{{ .JSONName }}")
+				{{ if not .Options.LeaveInExtras -}}
+					delete(event.Extras, "{{ .JSONName }}")
+				{{ end -}}
 			}
 		} else if t, ok := val.(time.Time); ok {
 			event.{{ .FieldName }} = t
-			delete(event.Extras, "{{ .JSONName }}")
+			{{ if not .Options.LeaveInExtras -}}
+				delete(event.Extras, "{{ .JSONName }}")
+			{{ end -}}
 		}
 		{{ else -}}
 		if typedVal, ok := val.({{ .TypeName }}); ok {
 			event.{{ .FieldName }} = typedVal
-			delete(event.Extras, "{{ .JSONName }}")
+			{{ if not .Options.LeaveInExtras -}}
+				delete(event.Extras, "{{ .JSONName }}")
+			{{ end -}}
 		}
 		{{ end -}}
 	}

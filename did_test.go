@@ -6,6 +6,7 @@ import (
 
 	"github.com/DIMO-Network/cloudevent"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -420,4 +421,159 @@ func TestERC20DID_String(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestERC721DID_MarshalUnmarshalText(t *testing.T) {
+	tests := []struct {
+		name    string
+		did     cloudevent.ERC721DID
+		wantErr bool
+	}{
+		{
+			name: "valid ERC721 DID",
+			did: cloudevent.ERC721DID{
+				ChainID:         1,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+				TokenID:         big.NewInt(1),
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid ERC721 DID with large token ID",
+			did: cloudevent.ERC721DID{
+				ChainID:         1,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+				TokenID:         big.NewInt(123456789),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test MarshalText
+			text, err := tt.did.MarshalText()
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did.String(), string(text))
+
+			// Test UnmarshalText
+			var got cloudevent.ERC721DID
+			err = got.UnmarshalText(text)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did, got)
+		})
+	}
+
+	// Test invalid unmarshal
+	t.Run("invalid unmarshal", func(t *testing.T) {
+		var did cloudevent.ERC721DID
+		err := did.UnmarshalText([]byte("invalid-did"))
+		assert.Error(t, err)
+	})
+}
+
+func TestEthrDID_MarshalUnmarshalText(t *testing.T) {
+	tests := []struct {
+		name    string
+		did     cloudevent.EthrDID
+		wantErr bool
+	}{
+		{
+			name: "valid Ethr DID",
+			did: cloudevent.EthrDID{
+				ChainID:         1,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid Ethr DID on different chain",
+			did: cloudevent.EthrDID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test MarshalText
+			text, err := tt.did.MarshalText()
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did.String(), string(text))
+
+			// Test UnmarshalText
+			var got cloudevent.EthrDID
+			err = got.UnmarshalText(text)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did, got)
+		})
+	}
+
+	// Test invalid unmarshal
+	t.Run("invalid unmarshal", func(t *testing.T) {
+		var did cloudevent.EthrDID
+		err := did.UnmarshalText([]byte("invalid-did"))
+		assert.Error(t, err)
+	})
+}
+
+func TestERC20DID_MarshalUnmarshalText(t *testing.T) {
+	tests := []struct {
+		name    string
+		did     cloudevent.ERC20DID
+		wantErr bool
+	}{
+		{
+			name: "valid ERC20 DID",
+			did: cloudevent.ERC20DID{
+				ChainID:         1,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid ERC20 DID on different chain",
+			did: cloudevent.ERC20DID{
+				ChainID:         137,
+				ContractAddress: common.HexToAddress("0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test MarshalText
+			text, err := tt.did.MarshalText()
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did.String(), string(text))
+
+			// Test UnmarshalText
+			var got cloudevent.ERC20DID
+			err = got.UnmarshalText(text)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.did, got)
+		})
+	}
+
+	// Test invalid unmarshal
+	t.Run("invalid unmarshal", func(t *testing.T) {
+		var did cloudevent.ERC20DID
+		err := did.UnmarshalText([]byte("invalid-did"))
+		assert.Error(t, err)
+	})
 }

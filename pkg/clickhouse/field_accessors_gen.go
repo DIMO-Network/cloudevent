@@ -25,6 +25,12 @@ func RestoreNonColumnFields(event *cloudevent.CloudEventHeader) {
 			delete(event.Extras, "dataschema")
 		}
 	}
+	// Restore Signature field
+	if val, ok := event.Extras["signature"]; ok {
+		if typedVal, ok := val.(string); ok {
+			event.Signature = typedVal
+		}
+	}
 }
 
 // AddNonColumnFieldsToExtras adds fields without dedicated columns to Extras
@@ -49,6 +55,10 @@ func AddNonColumnFieldsToExtras(event *cloudevent.CloudEventHeader) map[string]a
 	// Add DataSchema to extras if not zeros
 	if event.DataSchema != "" {
 		extras["dataschema"] = event.DataSchema
+	}
+	// Add Signature to extras if not zeros
+	if event.Signature != "" {
+		extras["signature"] = event.Signature
 	}
 	return extras
 }
