@@ -66,6 +66,9 @@ type CloudEventHeader struct {
 	// DataVersion is the version of the data type.
 	DataVersion string `json:"dataversion,omitempty"`
 
+	// Signature hold the signature of the a cloudevent's data field.
+	Signature string `json:"signature,omitempty" cloudevent:"leaveInExtras"`
+
 	// Extras contains any additional fields that are not part of the CloudEvent excluding the data field.
 	Extras map[string]any `json:"-"`
 }
