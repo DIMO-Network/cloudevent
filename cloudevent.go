@@ -16,7 +16,7 @@ const (
 	// TypeVerifableCredential is the event type for verifiable credentials.
 	TypeVerifableCredential = "dimo.verifiablecredential" //nolint:gosec // This is not a credential.
 
-	// TypeAttestation is the event time for 3rd party attestations
+	// TypeAttestation is the event type for 3rd party attestations
 	TypeAttestation = "dimo.attestation"
 
 	// TypeUnknown is the event type for unknown events.
