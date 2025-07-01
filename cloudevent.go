@@ -21,6 +21,9 @@ const (
 
 	// TypeUnknown is the event type for unknown events.
 	TypeUnknown = "dimo.unknown"
+
+	// TypeEvent is the event type for vehicle events
+	TypeEvent = "dimo.event"
 )
 
 // SpecVersion is the version of the CloudEvents spec.
