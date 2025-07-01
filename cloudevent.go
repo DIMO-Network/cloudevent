@@ -22,7 +22,7 @@ const (
 	// TypeUnknown is the event type for unknown events.
 	TypeUnknown = "dimo.unknown"
 
-	// TypeAttestation is the event type for vehicle events
+	// TypeEvent is the event type for vehicle events
 	TypeEvent = "dimo.event"
 )
 
