@@ -24,6 +24,9 @@ const (
 
 	// TypeEvent is the event type for vehicle events
 	TypeEvent = "dimo.event"
+
+	// TypeTrigger is the event type from a vehicle trigger.
+	TypeTrigger = "dimo.trigger"
 )
 
 // SpecVersion is the version of the CloudEvents spec.
