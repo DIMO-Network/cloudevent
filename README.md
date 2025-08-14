@@ -46,6 +46,7 @@ When working with DIMO services, your CloudEvent payload should follow this form
   "type": "dimo.status",
   "datacontenttype": "application/json",
   "dataversion": "default/v1.0",
+  "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
   "data": {
     "signals": [
       {
@@ -85,12 +86,14 @@ Each CloudEvent contains the following header fields:
 | DataContentType | The MIME type for the data field. When using JSON (the most common case), this should be "application/json".              |
 | DataSchema      | URI pointing to a schema for the data field.                                                                              |
 | DataVersion     | An optional way for the data provider to specify the version of the data structure in the payload (e.g., "default/v1.0"). |
+| Signature       | An optional cryptographic signature of the CloudEvent's data field for verification purposes.                             |
 | Extras          | Additional custom fields.                                                                                                 |
 
 The DIMO-specific extensions to the CloudEvents specification include:
 
 - `Producer`: Provides additional context about the specific instance, process, or device that created the event
 - `DataVersion`: A DIMO-specific extension that is unique to each source. This can be used by a source to determine the shape of the data field, enabling version-based data processing
+- `Signature`: An optional cryptographic signature field for verifying the integrity and authenticity of the CloudEvent's data
 
 ### Event Uniqueness
 
@@ -169,6 +172,7 @@ event := cloudevent.CloudEvent[MyDataType]{
         Type:           cloudevent.TypeStatus,
         DataContentType: "application/json",
         DataVersion:    "default/v1.0",
+        Signature:      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
     },
     Data: MyDataType{
         // Your data fields
