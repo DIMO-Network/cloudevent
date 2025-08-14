@@ -115,6 +115,9 @@ The library defines several DIMO-specific event types:
 - `dimo.fingerprint`: Used for fingerprint updates
 - `dimo.verifiablecredential`: Used for verifiable credentials
 - `dimo.unknown`: Used for unknown events
+- `dimo.attestation`: Used for attestation events from a vehicle attestation.
+- `dimo.event`: Used for events from a vehicle event.
+- `dimo.trigger`: Used for trigger events from a vehicle trigger.
 
 DIMO services expect the `Type` field to be one of these predefined types. Using custom or undefined types may result in events being improperly processed or rejected by DIMO services.
 
