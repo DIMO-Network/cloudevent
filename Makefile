@@ -49,9 +49,9 @@ lint: ## Run the linter
 	@PATH=$$PATH golangci-lint run --timeout=5m
 
 
-migration: ## Generate migration file specify name with name=your_migration_name
-	go tool migration -output=./pkg/clickhouse/migrations -package=migrations -filename="${name}"
-
+add-migration: # Add a new migration to the database
+	go tool goose create ${name} sql -s --dir=pkg/migrations
+	
 generate: generate-codegen ## Generate all code
 	@go generate ./...
 	

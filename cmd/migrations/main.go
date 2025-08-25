@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	err := migrate.RunGooseCmd(context.Background(), migrations.RegisterFuncs())
+	err := migrate.RunGooseCmd(context.Background(), migrations.BaseFS)
 	if err != nil {
 		log.Fatal(err)
 	}
