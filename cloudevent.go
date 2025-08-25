@@ -27,6 +27,12 @@ const (
 
 	// TypeTrigger is the event type from a vehicle trigger.
 	TypeTrigger = "dimo.trigger"
+
+	// TypeSACD is the event type for SACD events.
+	TypeSACD = "dimo.sacd"
+
+	// TypeSACDTemplate is the event type for SACD template events.
+	TypeSACDTemplate = "dimo.sacd.template"
 )
 
 // SpecVersion is the version of the CloudEvents spec.
