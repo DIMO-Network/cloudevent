@@ -15,21 +15,32 @@ func RestoreNonColumnFields(event *cloudevent.CloudEventHeader) {
 	if val, ok := event.Extras["specversion"]; ok {
 		if typedVal, ok := val.(string); ok {
 			event.SpecVersion = typedVal
-			delete(event.Extras, "specversion")
 		}
+		delete(event.Extras, "specversion")
 	}
 	// Restore DataSchema field
 	if val, ok := event.Extras["dataschema"]; ok {
 		if typedVal, ok := val.(string); ok {
 			event.DataSchema = typedVal
-			delete(event.Extras, "dataschema")
 		}
+		delete(event.Extras, "dataschema")
 	}
 	// Restore Signature field
 	if val, ok := event.Extras["signature"]; ok {
 		if typedVal, ok := val.(string); ok {
 			event.Signature = typedVal
 		}
+	}
+	// Restore Tags field
+	if val, ok := event.Extras["tags"]; ok {
+		if anySlice, ok := val.([]any); ok {
+			typedSlice := make([]string, len(anySlice))
+			for i, v := range anySlice {
+				typedSlice[i] = v.(string)
+			}
+			event.Tags = typedSlice
+		}
+		delete(event.Extras, "tags")
 	}
 }
 
@@ -59,6 +70,10 @@ func AddNonColumnFieldsToExtras(event *cloudevent.CloudEventHeader) map[string]a
 	// Add Signature to extras if not zeros
 	if event.Signature != "" {
 		extras["signature"] = event.Signature
+	}
+	// Add Tags to extras if not zeros
+	if len(event.Tags) > 0 {
+		extras["tags"] = event.Tags
 	}
 	return extras
 }

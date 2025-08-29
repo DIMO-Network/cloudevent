@@ -33,8 +33,10 @@ type FieldInfo struct {
 	FieldName string
 	// JSONName is the name of the field in the JSON tag.
 	JSONName string
-	// TypeName is the type of the field as a string.
-	TypeName string
+	// GoType is the type of the field as a string.
+	GoType reflect.Type
+	// Kind is the kind of the field.
+	Kind string
 	// Options contains the options for the field generation.
 	Options Options
 }
@@ -71,7 +73,8 @@ func main() {
 		nonColumnFields = append(nonColumnFields, FieldInfo{
 			FieldName: field.Name,
 			JSONName:  jsonName,
-			TypeName:  field.Type.String(),
+			GoType:    field.Type,
+			Kind:      field.Type.Kind().String(),
 			Options:   genOptions,
 		})
 	}
@@ -167,7 +170,7 @@ func RestoreNonColumnFields(event *cloudevent.CloudEventHeader) {
 	{{ range .NonColumnFields -}}
 	// Restore {{ .FieldName }} field
 	if val, ok := event.Extras["{{ .JSONName }}"]; ok {
-		{{ if eq .TypeName "time.Time" -}}
+		{{ if eq .GoType.String "time.Time" -}}
 		// Time needs special handling
 		if timeStr, ok := val.(string); ok {
 			if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
@@ -182,13 +185,21 @@ func RestoreNonColumnFields(event *cloudevent.CloudEventHeader) {
 				delete(event.Extras, "{{ .JSONName }}")
 			{{ end -}}
 		}
-		{{ else -}}
-		if typedVal, ok := val.({{ .TypeName }}); ok {
-			event.{{ .FieldName }} = typedVal
-			{{ if not .Options.LeaveInExtras -}}
-				delete(event.Extras, "{{ .JSONName }}")
-			{{ end -}}
+		{{ else if eq .Kind "slice" -}}
+		if anySlice, ok := val.([]any); ok {
+			typedSlice := make({{ .GoType.String }}, len(anySlice))
+			for i, v := range anySlice {
+				typedSlice[i] = v.({{ .GoType.Elem.String }})
+			}
+			event.{{ .FieldName }} = typedSlice
 		}
+		{{ else -}}
+		if typedVal, ok := val.({{ .GoType.String }}); ok {
+			event.{{ .FieldName }} = typedVal
+		}
+		{{ end -}}
+		{{ if not .Options.LeaveInExtras -}}
+		delete(event.Extras, "{{ .JSONName }}")
 		{{ end -}}
 	}
 	{{ end -}}
@@ -211,12 +222,16 @@ func AddNonColumnFieldsToExtras(event *cloudevent.CloudEventHeader) map[string]a
 	
 	{{ range .NonColumnFields -}}
 	// Add {{ .FieldName }} to extras if not zeros
-	{{ if eq .TypeName "string" -}}
+	{{ if eq .Kind "string" -}}
 	if event.{{ .FieldName }} != "" {
 		extras["{{ .JSONName }}"] = event.{{ .FieldName }}
 	}
-	{{ else if eq .TypeName "time.Time" -}}
+	{{ else if eq .GoType.String "time.Time" -}}
 	if !event.{{ .FieldName }}.IsZero() {
+		extras["{{ .JSONName }}"] = event.{{ .FieldName }}
+	}
+	{{ else if eq .Kind "slice" -}}
+	if len(event.{{ .FieldName }}) > 0 {
 		extras["{{ .JSONName }}"] = event.{{ .FieldName }}
 	}
 	{{ else -}}

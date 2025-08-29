@@ -430,6 +430,7 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 		DataVersion:     dataType,
 		SpecVersion:     cloudevent.SpecVersion,
 		Signature:       "0x1234567890",
+		Tags:            []string{"tests.tag1", "tests.tag2"},
 		Extras: map[string]any{
 			"extraField": "extra-value",
 		},
@@ -486,6 +487,7 @@ func TestGetEventWithAllHeaderFields(t *testing.T) {
 		assert.Equal(t, fullHeaderEvent.DataVersion, retrievedEvent.DataVersion, "DataVersion mismatch")
 		assert.Equal(t, cloudevent.SpecVersion, retrievedEvent.SpecVersion, "SpecVersion mismatch")
 		assert.Equal(t, fullHeaderEvent.Signature, retrievedEvent.Signature, "Signature mismatch")
+		assert.Equal(t, fullHeaderEvent.Tags, retrievedEvent.Tags, "Tags mismatch")
 
 		// Verify extras
 		require.NotNil(t, retrievedEvent.Extras)
