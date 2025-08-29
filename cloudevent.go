@@ -81,6 +81,9 @@ type CloudEventHeader struct {
 	// Signature hold the signature of the a cloudevent's data field.
 	Signature string `json:"signature,omitempty" cloudevent:"leaveInExtras"`
 
+	// Tags are a list of tags that can be used to filter events.
+	Tags []string `json:"tags,omitempty"`
+
 	// Extras contains any additional fields that are not part of the CloudEvent excluding the data field.
 	Extras map[string]any `json:"-"`
 }

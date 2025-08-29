@@ -47,6 +47,7 @@ When working with DIMO services, your CloudEvent payload should follow this form
   "datacontenttype": "application/json",
   "dataversion": "default/v1.0",
   "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+  "tags": ["telemetry"],
   "data": {
     "signals": [
       {
@@ -74,26 +75,28 @@ When working with DIMO services, your CloudEvent payload should follow this form
 
 Each CloudEvent contains the following header fields:
 
-| Field           | Description                                                                                                               |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| ID              | A unique identifier for the event. The combination of ID and Source must be unique.                                       |
-| Source          | Typically an Ethereum address. In many DIMO services                                                                      |
-| Producer        | The DID of the entity that produced the payload. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                  |
-| SpecVersion     | The version of CloudEvents specification used. This is always hardcoded as "1.0".                                         |
-| Subject         | The DID which denotes the subject of the event. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                   |
-| Time            | The time at which the event occurred. Format as RFC3339 timestamp.                                                        |
-| Type            | Describes the type of event - must be one of the predefined DIMO types.                                                   |
-| DataContentType | The MIME type for the data field. When using JSON (the most common case), this should be "application/json".              |
-| DataSchema      | URI pointing to a schema for the data field.                                                                              |
-| DataVersion     | An optional way for the data provider to specify the version of the data structure in the payload (e.g., "default/v1.0"). |
-| Signature       | An optional cryptographic signature of the CloudEvent's data field for verification purposes.                             |
-| Extras          | Additional custom fields.                                                                                                 |
+| Field           | Description                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ID              | A unique identifier for the event. The combination of ID and Source must be unique.                                                     |
+| Source          | Typically an Ethereum address. In many DIMO services                                                                                    |
+| Producer        | The DID of the entity that produced the payload. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                                |
+| SpecVersion     | The version of CloudEvents specification used. This is always hardcoded as "1.0".                                                       |
+| Subject         | The DID which denotes the subject of the event. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                                 |
+| Time            | The time at which the event occurred. Format as RFC3339 timestamp.                                                                      |
+| Type            | Describes the type of event - must be one of the predefined DIMO types.                                                                 |
+| DataContentType | The MIME type for the data field. When using JSON (the most common case), this should be "application/json".                            |
+| DataSchema      | URI pointing to a schema for the data field.                                                                                            |
+| DataVersion     | An optional way for the data provider to specify the version of the data structure in the payload (e.g., "default/v1.0").               |
+| Signature       | An optional cryptographic signature of the CloudEvent's data field for verification purposes.                                           |
+| Tags            | An optional list of tags that can be used to filter and categorize a cloudevents (currently these are only used by `dimo.attestation`). |
+| Extras          | Additional custom fields.                                                                                                               |
 
 The DIMO-specific extensions to the CloudEvents specification include:
 
 - `Producer`: Provides additional context about the specific instance, process, or device that created the event
 - `DataVersion`: A DIMO-specific extension that is unique to each source. This can be used by a source to determine the shape of the data field, enabling version-based data processing
 - `Signature`: An optional cryptographic signature field for verifying the integrity and authenticity of the CloudEvent's data
+- `Tags`: An optional list of tags for filtering and categorizing events, useful for event organization and query optimization
 
 ### Event Uniqueness
 
@@ -118,6 +121,8 @@ The library defines several DIMO-specific event types:
 - `dimo.attestation`: Used for attestation events from a vehicle attestation.
 - `dimo.event`: Used for events from a vehicle event.
 - `dimo.trigger`: Used for trigger events from a vehicle trigger.
+- `dimo.sacd`: Used for cloudevents defining a SACD(Service Access Control Definition) agreement.
+- `dimo.sacd.template`: Used for cloudevents defining a template SACD agreement.
 
 DIMO services expect the `Type` field to be one of these predefined types. Using custom or undefined types may result in events being improperly processed or rejected by DIMO services.
 
@@ -176,6 +181,7 @@ event := cloudevent.CloudEvent[MyDataType]{
         DataContentType: "application/json",
         DataVersion:    "default/v1.0",
         Signature:      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+        Tags:           []string{"telemetry"},
     },
     Data: MyDataType{
         // Your data fields
