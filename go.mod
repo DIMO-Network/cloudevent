@@ -5,10 +5,10 @@ go 1.24
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.1
 	github.com/DIMO-Network/clickhouse-infra v0.0.5
-	github.com/DIMO-Network/model-garage v0.7.1
+	github.com/DIMO-Network/model-garage v0.7.2
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/ethereum/go-ethereum v1.16.2
-	github.com/stretchr/testify v1.10.0
+	github.com/ethereum/go-ethereum v1.16.3
+	github.com/stretchr/testify v1.11.1
 	github.com/tidwall/sjson v1.2.5
 )
 
