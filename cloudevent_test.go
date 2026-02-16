@@ -345,3 +345,38 @@ func TestCloudEventHeader_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestRawEvent_UnmarshalJSON_InvalidBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data_base64":"$$not-base64$$"}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error for invalid base64 in data_base64")
+}
+
+func TestRawEvent_UnmarshalJSON_BothDataAndDataBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data":{"x":1},"data_base64":"Zm9v"}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error when both data and data_base64 are present")
+	assert.Contains(t, err.Error(), "both")
+}
+
+func TestCloudEvent_UnmarshalJSON_InvalidTime(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","time":12345,"data":{"message":"hi","count":1}}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error for invalid time field type")
+}
+
+func TestCloudEvent_UnmarshalJSON_NoDataField(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","subject":"sub","time":"2025-01-01T00:00:00Z"}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.NoError(t, err, "CloudEvent without data field should succeed")
+	assert.Equal(t, "1", ev.ID)
+	assert.Equal(t, TestData{}, ev.Data)
+}
