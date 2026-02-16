@@ -2,8 +2,14 @@
 package cloudevent
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"mime"
+	"strings"
 	"time"
+
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -95,10 +101,90 @@ type CloudEvent[A any] struct {
 	CloudEventHeader
 	// Data contains domain-specific information about the event.
 	Data A `json:"data"`
+
+	DataBase64 string `json:"data_base64,omitempty"`
 }
 
 // RawEvent is a cloudevent with a json.RawMessage data field.
-type RawEvent = CloudEvent[json.RawMessage]
+// It supports both "data" and "data_base64" (CloudEvents JSON spec).
+type RawEvent struct {
+	CloudEventHeader
+	Data json.RawMessage `json:"data,omitempty"`
+
+	// DataBase64 is the raw "data_base64" string when the event was received with
+	// data_base64 (CloudEvents spec). When set, MarshalJSON emits data_base64 for
+	// round-trip; otherwise wire form is chosen from DataContentType and Data.
+	DataBase64 string `json:"data_base64,omitempty"`
+}
+
+// BytesForSignature returns the bytes that were signed (wire form of data or data_base64).
+// Use for signature verification; not the same as Data when the CE used data_base64.
+func (r RawEvent) BytesForSignature() []byte {
+	if r.DataBase64 != "" {
+		return []byte(r.DataBase64)
+	}
+	return r.Data
+}
+
+// UnmarshalJSON implements json.Unmarshaler so that both "data" and "data_base64"
+// are supported; Data is always set to the resolved payload bytes.
+func (r *RawEvent) UnmarshalJSON(data []byte) error {
+	var dataRaw json.RawMessage
+	var dataBase64 string
+	header, err := unmarshalCloudEventWithPayload(data, func(d json.RawMessage, b64 string) error {
+		dataRaw = d
+		dataBase64 = b64
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	r.CloudEventHeader = header
+	if dataRaw != nil && dataBase64 != "" {
+		return fmt.Errorf("cloudevent: both \"data\" and \"data_base64\" present; only one allowed")
+	}
+	if dataBase64 != "" {
+		decoded, err := base64.StdEncoding.DecodeString(dataBase64)
+		if err != nil {
+			return err
+		}
+		r.Data = decoded
+		r.DataBase64 = dataBase64
+	} else {
+		r.Data = dataRaw
+		r.DataBase64 = ""
+	}
+	return nil
+}
+
+// IsJSONDataContentType returns true if the MIME type indicates a JSON payload.
+// Matches "application/json" and any "+json" suffix type (e.g. "application/cloudevents+json").
+func IsJSONDataContentType(ct string) bool {
+	parsed, _, err := mime.ParseMediaType(strings.TrimSpace(ct))
+	return err == nil && (parsed == "application/json" || strings.HasSuffix(parsed, "+json"))
+}
+
+// MarshalJSON implements json.Marshaler. Uses DataContentType to choose wire form:
+// application/json -> "data"; otherwise -> "data_base64" (CloudEvents spec).
+func (r RawEvent) MarshalJSON() ([]byte, error) {
+	data, err := json.Marshal(r.CloudEventHeader)
+	if err != nil {
+		return nil, err
+	}
+	if len(r.Data) > 0 || r.DataBase64 != "" {
+		if r.DataBase64 != "" {
+			data, err = sjson.SetBytes(data, "data_base64", r.DataBase64)
+		} else if IsJSONDataContentType(r.DataContentType) || (r.DataContentType == "" && json.Valid(r.Data)) {
+			data, err = sjson.SetRawBytes(data, "data", r.Data)
+		} else {
+			data, err = sjson.SetBytes(data, "data_base64", base64.StdEncoding.EncodeToString(r.Data))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
 
 // Equals returns true if the two CloudEventHeaders share the same IndexKey.
 func (c *CloudEventHeader) Equals(other CloudEventHeader) bool {
