@@ -124,31 +124,31 @@ func (c CloudEventHeader) MarshalJSON() ([]byte, error) {
 	return data, nil
 }
 
+// jsonFieldKey returns the JSON object key for f, or "" if the field has no json tag or is "-".
+func jsonFieldKey(f reflect.StructField) string {
+	tag := f.Tag.Get("json")
+	if tag == "" {
+		return ""
+	}
+	name := tag
+	if comma := strings.Index(tag, ","); comma != -1 {
+		name = tag[:comma]
+	}
+	if name == "-" {
+		return ""
+	}
+	return name
+}
+
 // getJSONFieldNames returns a map of the JSON field names for the given type.
 // It is used to determine which fields are defined in the CloudEventHeader and which should be added to the Extras map.
 func getJSONFieldNames(t reflect.Type) map[string]struct{} {
 	fields := map[string]struct{}{}
-
 	for i := range t.NumField() {
-		field := t.Field(i)
-
-		tag := field.Tag.Get("json")
-		if tag == "" {
-			continue
+		if key := jsonFieldKey(t.Field(i)); key != "" {
+			fields[key] = struct{}{}
 		}
-
-		name := tag
-		if comma := strings.Index(tag, ","); comma != -1 {
-			name = tag[:comma]
-		}
-
-		if name == "-" {
-			continue
-		}
-
-		fields[name] = struct{}{}
 	}
-
 	return fields
 }
 
@@ -160,36 +160,58 @@ func unmarshalCloudEvent(data []byte, dataFunc func(json.RawMessage) error) (Clo
 }
 
 // unmarshalCloudEventWithPayload unmarshals the CloudEventHeader and returns both
-// "data" and "data_base64" for CloudEvent payload. Single pass: parse once into
-// map[string]json.RawMessage, then fill header and payload from the map.
+// "data" and "data_base64" for CloudEvent payload. Single parse into
+// map[string]json.RawMessage; known keys are unmarshaled into the header struct,
+// unknown keys go to Extras, then data/data_base64 are passed to payloadFunc.
 func unmarshalCloudEventWithPayload(data []byte, payloadFunc func(dataRaw json.RawMessage, dataBase64 string) error) (CloudEventHeader, error) {
 	rawFields := make(map[string]json.RawMessage)
 	if err := json.Unmarshal(data, &rawFields); err != nil {
 		return CloudEventHeader{}, err
 	}
 
-	var c CloudEventHeader
+	// Reassemble header keys into a single JSON object and unmarshal once (no per-field routing).
+	headerRaw := make(map[string]json.RawMessage, len(rawFields))
 	for key, raw := range rawFields {
 		if key == "data" || key == "data_base64" {
 			continue
 		}
 		if _, defined := definedCloudeEventHdrFields[key]; defined {
-			if err := setHeaderField(&c, key, raw); err != nil {
-				return c, err
-			}
-		} else {
-			if c.Extras == nil {
-				c.Extras = make(map[string]any)
-			}
-			var value any
-			if err := json.Unmarshal(raw, &value); err != nil {
-				return c, err
-			}
-			c.Extras[key] = value
+			headerRaw[key] = raw
 		}
+	}
+	var c CloudEventHeader
+	if len(headerRaw) > 0 {
+		headerBytes, err := json.Marshal(headerRaw)
+		if err != nil {
+			return CloudEventHeader{}, err
+		}
+		var aux cloudEventHeader
+		if err := json.Unmarshal(headerBytes, &aux); err != nil {
+			return CloudEventHeader{}, err
+		}
+		c = CloudEventHeader(aux)
 	}
 	c.SpecVersion = SpecVersion
 
+	// Unknown keys → Extras
+	for key, raw := range rawFields {
+		if key == "data" || key == "data_base64" {
+			continue
+		}
+		if _, defined := definedCloudeEventHdrFields[key]; defined {
+			continue
+		}
+		if c.Extras == nil {
+			c.Extras = make(map[string]any)
+		}
+		var value any
+		if err := json.Unmarshal(raw, &value); err != nil {
+			return c, err
+		}
+		c.Extras[key] = value
+	}
+
+	// Payload
 	var dataRaw json.RawMessage
 	var dataBase64 string
 	if raw, ok := rawFields["data_base64"]; ok && len(raw) > 0 {
@@ -206,38 +228,6 @@ func unmarshalCloudEventWithPayload(data []byte, payloadFunc func(dataRaw json.R
 		}
 	}
 	return c, nil
-}
-
-// setHeaderField unmarshals raw into the CloudEventHeader field for key.
-func setHeaderField(c *CloudEventHeader, key string, raw json.RawMessage) error {
-	switch key {
-	case "id":
-		return json.Unmarshal(raw, &c.ID)
-	case "source":
-		return json.Unmarshal(raw, &c.Source)
-	case "producer":
-		return json.Unmarshal(raw, &c.Producer)
-	case "specversion":
-		return json.Unmarshal(raw, &c.SpecVersion)
-	case "subject":
-		return json.Unmarshal(raw, &c.Subject)
-	case "time":
-		return json.Unmarshal(raw, &c.Time)
-	case "type":
-		return json.Unmarshal(raw, &c.Type)
-	case "datacontenttype":
-		return json.Unmarshal(raw, &c.DataContentType)
-	case "dataschema":
-		return json.Unmarshal(raw, &c.DataSchema)
-	case "dataversion":
-		return json.Unmarshal(raw, &c.DataVersion)
-	case "signature":
-		return json.Unmarshal(raw, &c.Signature)
-	case "tags":
-		return json.Unmarshal(raw, &c.Tags)
-	default:
-		return nil
-	}
 }
 
 // ignoreDataField is a function that ignores the data field.
