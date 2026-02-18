@@ -345,3 +345,500 @@ func TestCloudEventHeader_UnmarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestCloudEvent_UnmarshalJSON_DataBase64(t *testing.T) {
+	t.Parallel()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+
+	// base64 of `{"message":"hello","count":42}`
+	jsonStr := `{
+		"id": "b64-1",
+		"source": "test-source",
+		"producer": "test-producer",
+		"subject": "test-subject",
+		"time": "` + now.Format(time.RFC3339Nano) + `",
+		"type": "dimo.status",
+		"data_base64": "eyJtZXNzYWdlIjoiaGVsbG8iLCJjb3VudCI6NDJ9"
+	}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.NoError(t, err)
+	assert.Equal(t, "b64-1", ev.ID)
+	assert.Equal(t, TestData{Message: "hello", Count: 42}, ev.Data, "Data should be populated from decoded data_base64")
+	assert.Equal(t, "eyJtZXNzYWdlIjoiaGVsbG8iLCJjb3VudCI6NDJ9", ev.DataBase64)
+}
+
+func TestCloudEvent_MarshalJSON_DataBase64(t *testing.T) {
+	t.Parallel()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	ev := cloudevent.CloudEvent[TestData]{
+		CloudEventHeader: cloudevent.CloudEventHeader{
+			ID:       "b64-m",
+			Source:   "test-source",
+			Producer: "test-producer",
+			Subject:  "test-subject",
+			Time:     now,
+			Type:     cloudevent.TypeStatus,
+		},
+		Data:       TestData{Message: "hello", Count: 42},
+		DataBase64: "eyJtZXNzYWdlIjoiaGVsbG8iLCJjb3VudCI6NDJ9",
+	}
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, "eyJtZXNzYWdlIjoiaGVsbG8iLCJjb3VudCI6NDJ9", m["data_base64"])
+	assert.Nil(t, m["data"], "data field should not be present when data_base64 is set")
+}
+
+func TestCloudEvent_UnmarshalJSON_BothDataAndDataBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data":{"message":"hi","count":1},"data_base64":"Zm9v"}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error when both data and data_base64 are present")
+	assert.Contains(t, err.Error(), "both")
+}
+
+func TestCloudEvent_UnmarshalJSON_InvalidBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data_base64":"$$not-base64$$"}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "CloudEvent[A] should fail when data_base64 is invalid")
+	assert.Contains(t, err.Error(), "base64")
+}
+
+func TestCloudEvent_DataBase64_RoundTrip(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id": "rt-1",
+		"source": "s",
+		"producer": "p",
+		"subject": "sub",
+		"time": "2025-01-01T00:00:00Z",
+		"type": "dimo.status",
+		"data_base64": "eyJtZXNzYWdlIjoicnQiLCJjb3VudCI6N30="
+	}`
+	var ev cloudevent.CloudEvent[TestData]
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+	assert.Equal(t, TestData{Message: "rt", Count: 7}, ev.Data, "Data should be populated from decoded data_base64")
+	assert.Equal(t, "eyJtZXNzYWdlIjoicnQiLCJjb3VudCI6N30=", ev.DataBase64)
+
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, "eyJtZXNzYWdlIjoicnQiLCJjb3VudCI6N30=", m["data_base64"])
+	assert.Nil(t, m["data"])
+}
+
+// --- RawEvent positive tests ---
+
+func TestRawEvent_UnmarshalJSON_DataField(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id":"r1","source":"s","producer":"p","subject":"sub",
+		"time":"2025-06-01T00:00:00Z","type":"dimo.status",
+		"data":{"temp":72}
+	}`
+	var ev cloudevent.RawEvent
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+
+	assert.Equal(t, "r1", ev.ID)
+	assert.JSONEq(t, `{"temp":72}`, string(ev.Data))
+	assert.Empty(t, ev.DataBase64, "DataBase64 should be empty when data field is used")
+}
+
+func TestRawEvent_UnmarshalJSON_DataBase64Field(t *testing.T) {
+	t.Parallel()
+	// base64("hello world") = "aGVsbG8gd29ybGQ="
+	input := `{
+		"id":"r2","source":"s","producer":"p","subject":"sub",
+		"time":"2025-06-01T00:00:00Z","type":"dimo.status",
+		"data_base64":"aGVsbG8gd29ybGQ="
+	}`
+	var ev cloudevent.RawEvent
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+
+	assert.Equal(t, "r2", ev.ID)
+	assert.Equal(t, []byte("hello world"), []byte(ev.Data))
+	assert.Equal(t, "aGVsbG8gd29ybGQ=", ev.DataBase64)
+}
+
+func TestRawEvent_UnmarshalJSON_DataBase64_WithExtras(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id":"r3","source":"s","producer":"p","subject":"sub",
+		"time":"2025-06-01T00:00:00Z","type":"dimo.status",
+		"data_base64":"Zm9v",
+		"customfield":"bar"
+	}`
+	var ev cloudevent.RawEvent
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+
+	assert.Equal(t, "Zm9v", ev.DataBase64)
+	assert.Equal(t, []byte("foo"), []byte(ev.Data))
+	require.Contains(t, ev.Extras, "customfield")
+	assert.Equal(t, "bar", ev.Extras["customfield"])
+}
+
+func TestRawEvent_RoundTrip_DataBase64(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id":"rt","source":"s","producer":"p","subject":"sub",
+		"time":"2025-06-01T00:00:00Z","type":"dimo.status",
+		"data_base64":"aGVsbG8gd29ybGQ="
+	}`
+	var ev cloudevent.RawEvent
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, "aGVsbG8gd29ybGQ=", m["data_base64"])
+	assert.Nil(t, m["data"], "data should not be present when round-tripping data_base64")
+}
+
+func TestRawEvent_RoundTrip_DataJSON(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id":"rt2","source":"s","producer":"p","subject":"sub",
+		"time":"2025-06-01T00:00:00Z","type":"dimo.status",
+		"data":{"key":"value"}
+	}`
+	var ev cloudevent.RawEvent
+	require.NoError(t, json.Unmarshal([]byte(input), &ev))
+
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Nil(t, m["data_base64"], "data_base64 should not be present when data is JSON")
+	assert.Equal(t, map[string]any{"key": "value"}, m["data"])
+}
+
+func TestRawEvent_MarshalJSON_NonJSONData_EmitsBase64(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		CloudEventHeader: cloudevent.CloudEventHeader{
+			ID:              "nj1",
+			Source:          "s",
+			Producer:        "p",
+			Subject:         "sub",
+			Time:            time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+			Type:            cloudevent.TypeStatus,
+			DataContentType: "application/octet-stream",
+		},
+		Data: []byte("binary\x00data"),
+	}
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Nil(t, m["data"], "non-JSON content type should not emit data field")
+	assert.NotEmpty(t, m["data_base64"])
+}
+
+func TestRawEvent_MarshalJSON_ExplicitJSONContentType(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		CloudEventHeader: cloudevent.CloudEventHeader{
+			ID:              "jct",
+			Source:          "s",
+			Producer:        "p",
+			Subject:         "sub",
+			Time:            time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+			Type:            cloudevent.TypeStatus,
+			DataContentType: "application/json",
+		},
+		Data: json.RawMessage(`{"ok":true}`),
+	}
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, map[string]any{"ok": true}, m["data"])
+	assert.Nil(t, m["data_base64"])
+}
+
+func TestRawEvent_MarshalJSON_DataBase64TakesPrecedence(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		CloudEventHeader: cloudevent.CloudEventHeader{
+			ID:      "bp",
+			Source:  "s",
+			Subject: "sub",
+			Time:    time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+			Type:    cloudevent.TypeStatus,
+		},
+		Data:       json.RawMessage(`{"ignored":true}`),
+		DataBase64: "cHJlc2V0",
+	}
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Equal(t, "cHJlc2V0", m["data_base64"])
+	assert.Nil(t, m["data"], "data_base64 should take precedence over data")
+}
+
+func TestRawEvent_BytesForSignature_DataBase64(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		Data:       []byte("decoded payload"),
+		DataBase64: "b3JpZ2luYWw=",
+	}
+	assert.Equal(t, []byte("b3JpZ2luYWw="), cloudevent.BytesForSignature(ev))
+}
+
+func TestRawEvent_BytesForSignature_DataOnly(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		Data: json.RawMessage(`{"sig":"data"}`),
+	}
+	assert.Equal(t, json.RawMessage(`{"sig":"data"}`), json.RawMessage(cloudevent.BytesForSignature(ev)))
+}
+
+// --- IsJSONDataContentType tests ---
+
+func TestIsJSONDataContentType(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		ct       string
+		expected bool
+	}{
+		{"application/json", true},
+		{"application/json; charset=utf-8", true},
+		{"application/cloudevents+json", true},
+		{"application/vnd.custom+json", true},
+		{"application/octet-stream", false},
+		{"text/plain", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.expected, cloudevent.IsJSONDataContentType(tt.ct), "content type: %q", tt.ct)
+	}
+}
+
+func TestRawEvent_UnmarshalJSON_InvalidBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data_base64":"$$not-base64$$"}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error for invalid base64 in data_base64")
+}
+
+func TestRawEvent_UnmarshalJSON_BothDataAndDataBase64(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","data":{"x":1},"data_base64":"Zm9v"}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error when both data and data_base64 are present")
+	assert.Contains(t, err.Error(), "both")
+}
+
+func TestCloudEvent_UnmarshalJSON_InvalidTime(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","time":12345,"data":{"message":"hi","count":1}}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "expected error for invalid time field type")
+}
+
+func TestCloudEvent_UnmarshalJSON_NoDataField(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","subject":"sub","time":"2025-01-01T00:00:00Z"}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.NoError(t, err, "CloudEvent without data field should succeed")
+	assert.Equal(t, "1", ev.ID)
+	assert.Equal(t, TestData{}, ev.Data)
+}
+
+// --- DecodeHeader tests ---
+
+func TestDecodeHeader(t *testing.T) {
+	t.Parallel()
+	input := `{
+		"id":"dh-1","source":"s","producer":"p","subject":"sub",
+		"time":"2025-01-01T00:00:00Z","type":"dimo.status",
+		"data":{"ignored":"payload"}
+	}`
+	hdr, err := cloudevent.DecodeHeader([]byte(input))
+	require.NoError(t, err)
+	assert.Equal(t, "dh-1", hdr.ID)
+	assert.Equal(t, "s", hdr.Source)
+	assert.Equal(t, cloudevent.TypeStatus, hdr.Type)
+}
+
+func TestDecodeHeader_InvalidJSON(t *testing.T) {
+	t.Parallel()
+	_, err := cloudevent.DecodeHeader([]byte(`{invalid`))
+	require.Error(t, err)
+}
+
+// --- Key and Equals tests ---
+
+func TestCloudEventHeader_Key(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	hdr := cloudevent.CloudEventHeader{
+		ID:      "id-1",
+		Source:  "src",
+		Subject: "sub",
+		Type:    cloudevent.TypeStatus,
+		Time:    ts,
+	}
+	expected := "sub!" + ts.Format(time.RFC3339) + "!" + cloudevent.TypeStatus + "!src!id-1"
+	assert.Equal(t, expected, hdr.Key())
+}
+
+func TestCloudEventHeader_Equals(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	hdr1 := cloudevent.CloudEventHeader{
+		ID: "id-1", Source: "src", Subject: "sub", Type: cloudevent.TypeStatus, Time: ts,
+	}
+	hdr2 := cloudevent.CloudEventHeader{
+		ID: "id-1", Source: "src", Subject: "sub", Type: cloudevent.TypeStatus, Time: ts,
+		Producer: "different-producer",
+	}
+	assert.True(t, hdr1.Equals(hdr2), "headers with same key fields should be equal")
+
+	hdr3 := cloudevent.CloudEventHeader{
+		ID: "id-2", Source: "src", Subject: "sub", Type: cloudevent.TypeStatus, Time: ts,
+	}
+	assert.False(t, hdr1.Equals(hdr3), "headers with different ID should not be equal")
+
+	hdr4 := cloudevent.CloudEventHeader{
+		ID: "id-1", Source: "other-src", Subject: "sub", Type: cloudevent.TypeStatus, Time: ts,
+	}
+	assert.False(t, hdr1.Equals(hdr4), "headers with different source should not be equal")
+}
+
+// --- Double-marshal / escaped-quotes prevention tests ---
+
+func TestCloudEvent_MarshalJSON_NoDoubleEscaping(t *testing.T) {
+	t.Parallel()
+	ts := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	t.Run("typed event with quotes in data", func(t *testing.T) {
+		t.Parallel()
+		ev := cloudevent.CloudEvent[TestData]{
+			CloudEventHeader: cloudevent.CloudEventHeader{
+				ID: "esc-1", Source: "s", Subject: "sub", Type: "t", Time: ts,
+			},
+			Data: TestData{Message: `say "hello"`, Count: 1},
+		}
+		out, err := json.Marshal(ev)
+		require.NoError(t, err)
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(out, &m))
+		data := m["data"].(map[string]any)
+		assert.Equal(t, `say "hello"`, data["message"], "quotes should not be double-escaped")
+	})
+
+	t.Run("RawEvent with quoted JSON data", func(t *testing.T) {
+		t.Parallel()
+		ev := cloudevent.CloudEvent[json.RawMessage]{
+			CloudEventHeader: cloudevent.CloudEventHeader{
+				ID: "esc-2", Source: "s", Subject: "sub", Type: "t", Time: ts,
+			},
+			Data: json.RawMessage(`{"key":"val with \"quotes\""}`),
+		}
+		out, err := json.Marshal(ev)
+		require.NoError(t, err)
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(out, &m))
+		data := m["data"].(map[string]any)
+		assert.Equal(t, `val with "quotes"`, data["key"], "RawEvent should not double-escape quotes")
+	})
+
+	t.Run("CloudEvent[json.RawMessage] no double encoding", func(t *testing.T) {
+		t.Parallel()
+		rawData := json.RawMessage(`{"nested":{"deep":"value"}}`)
+		ev := cloudevent.CloudEvent[json.RawMessage]{
+			CloudEventHeader: cloudevent.CloudEventHeader{
+				ID: "esc-3", Source: "s", Subject: "sub", Type: "t", Time: ts,
+			},
+			Data: rawData,
+		}
+		out, err := json.Marshal(ev)
+		require.NoError(t, err)
+
+		var m map[string]any
+		require.NoError(t, json.Unmarshal(out, &m))
+		data := m["data"].(map[string]any)
+		nested := data["nested"].(map[string]any)
+		assert.Equal(t, "value", nested["deep"], "json.RawMessage data should not be double-encoded")
+	})
+}
+
+// --- RawEvent empty data tests ---
+
+func TestRawEvent_MarshalJSON_NoData(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.RawEvent{
+		CloudEventHeader: cloudevent.CloudEventHeader{
+			ID: "nd-1", Source: "s", Subject: "sub", Type: "t",
+			Time: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	out, err := json.Marshal(ev)
+	require.NoError(t, err)
+
+	var m map[string]any
+	require.NoError(t, json.Unmarshal(out, &m))
+	assert.Nil(t, m["data"], "data should not be present when no data")
+	assert.Nil(t, m["data_base64"], "data_base64 should not be present when no data")
+	assert.Equal(t, "nd-1", m["id"])
+}
+
+func TestRawEvent_UnmarshalJSON_NoDataField(t *testing.T) {
+	t.Parallel()
+	input := `{"id":"nd-2","source":"s","subject":"sub","type":"t","time":"2025-01-01T00:00:00Z"}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(input), &ev)
+	require.NoError(t, err)
+	assert.Equal(t, "nd-2", ev.ID)
+	assert.Nil(t, ev.Data, "Data should be nil when no data field in JSON")
+	assert.Empty(t, ev.DataBase64)
+}
+
+// --- CloudEvent unmarshal error tests ---
+
+func TestCloudEvent_UnmarshalJSON_DataTypeMismatch(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","time":"2025-01-01T00:00:00Z","data":"a plain string"}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "should fail when data type doesn't match A")
+}
+
+func TestCloudEvent_UnmarshalJSON_DataBase64NonString(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","time":"2025-01-01T00:00:00Z","data_base64":123}`
+	var ev cloudevent.CloudEvent[TestData]
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "should fail when data_base64 is not a string")
+}
+
+func TestRawEvent_UnmarshalJSON_DataBase64NonString(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"id":"1","source":"s","type":"t","time":"2025-01-01T00:00:00Z","data_base64":123}`
+	var ev cloudevent.RawEvent
+	err := json.Unmarshal([]byte(jsonStr), &ev)
+	require.Error(t, err, "should fail when data_base64 is not a string")
+}
+

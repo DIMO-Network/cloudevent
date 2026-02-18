@@ -3,6 +3,8 @@ package cloudevent
 
 import (
 	"encoding/json"
+	"mime"
+	"strings"
 	"time"
 )
 
@@ -95,10 +97,29 @@ type CloudEvent[A any] struct {
 	CloudEventHeader
 	// Data contains domain-specific information about the event.
 	Data A `json:"data"`
+
+	DataBase64 string `json:"data_base64,omitempty"`
 }
 
 // RawEvent is a cloudevent with a json.RawMessage data field.
+// It supports both "data" and "data_base64" (CloudEvents JSON spec).
 type RawEvent = CloudEvent[json.RawMessage]
+
+// BytesForSignature returns the bytes that were signed (wire form of data or data_base64) for a RawEvent.
+// Use for signature verification; not the same as Data when the CE used data_base64.
+func BytesForSignature(ev RawEvent) []byte {
+	if ev.DataBase64 != "" {
+		return []byte(ev.DataBase64)
+	}
+	return ev.Data
+}
+
+// IsJSONDataContentType returns true if the MIME type indicates a JSON payload.
+// Matches "application/json" and any "+json" suffix type (e.g. "application/cloudevents+json").
+func IsJSONDataContentType(ct string) bool {
+	parsed, _, err := mime.ParseMediaType(strings.TrimSpace(ct))
+	return err == nil && (parsed == "application/json" || strings.HasSuffix(parsed, "+json"))
+}
 
 // Equals returns true if the two CloudEventHeaders share the same IndexKey.
 func (c *CloudEventHeader) Equals(other CloudEventHeader) bool {
