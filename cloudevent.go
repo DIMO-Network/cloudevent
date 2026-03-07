@@ -8,66 +8,36 @@ import (
 	"time"
 )
 
-const (
-	// TypeStatus is the event type for status updates.
-	TypeStatus = "dimo.status"
-
-	// TypeFingerprint is the event type for fingerprint updates.
-	TypeFingerprint = "dimo.fingerprint"
-
-	// TypeVerifableCredential is the event type for verifiable credentials.
-	TypeVerifableCredential = "dimo.verifiablecredential" //nolint:gosec // This is not a credential.
-
-	// TypeAttestation is the event type for 3rd party attestations
-	TypeAttestation = "dimo.attestation"
-
-	// TypeUnknown is the event type for unknown events.
-	TypeUnknown = "dimo.unknown"
-
-	// TypeEvent is the event type for vehicle events
-	TypeEvent = "dimo.event"
-
-	// TypeTrigger is the event type from a vehicle trigger.
-	TypeTrigger = "dimo.trigger"
-
-	// TypeSACD is the event type for SACD events.
-	TypeSACD = "dimo.sacd"
-
-	// TypeSACDTemplate is the event type for SACD template events.
-	TypeSACDTemplate = "dimo.sacd.template"
-)
-
 // SpecVersion is the version of the CloudEvents spec.
 const SpecVersion = "1.0"
 
 // CloudEventHeader contains the metadata for any CloudEvent.
+// Field order matches the JSON Event Format: specversion, type, source, subject, id, time, then optional/extension attributes.
+// See https://github.com/cloudevents/spec/blob/main/cloudevents/formats/json-format.md
 // To add extra headers to the CloudEvent, add them to the Extras map.
 type CloudEventHeader struct {
-	// ID is an identifier for the event. The combination of ID and Source must
-	// be unique.
-	ID string `json:"id"`
-
-	// Source is the context in which the event happened. In a distributed system it might consist of multiple Producers.
-	Source string `json:"source"`
-
-	// Producer is a specific instance, process or device that creates the data structure describing the CloudEvent.
-	Producer string `json:"producer"`
-
 	// SpecVersion is the version of CloudEvents specification used.
 	// This is always hardcoded "1.0".
 	SpecVersion string `json:"specversion"`
+
+	// Type describes the type of event. It should generally be a reverse-DNS
+	// name.
+	Type string `json:"type"`
+
+	// Source is the context in which the event happened. In a distributed system it might consist of multiple Producers.
+	Source string `json:"source"`
 
 	// Subject is an optional field identifying the subject of the event within
 	// the context of the event producer. In practice, we always set this.
 	Subject string `json:"subject"`
 
+	// ID is an identifier for the event. The combination of ID and Source must
+	// be unique.
+	ID string `json:"id"`
+
 	// Time is an optional field giving the time at which the event occurred. In
 	// practice, we always set this.
 	Time time.Time `json:"time"`
-
-	// Type describes the type of event. It should generally be a reverse-DNS
-	// name.
-	Type string `json:"type"`
 
 	// DataContentType is an optional MIME type for the data field. We almost
 	// always serialize to JSON and in that case this field is implicitly
@@ -80,8 +50,11 @@ type CloudEventHeader struct {
 	// DataVersion is the version of the data type.
 	DataVersion string `json:"dataversion,omitempty"`
 
+	// Producer is a specific instance, process or device that creates the data structure describing the CloudEvent.
+	Producer string `json:"producer"`
+
 	// Signature hold the signature of the a cloudevent's data field.
-	Signature string `json:"signature,omitempty" cloudevent:"leaveInExtras"`
+	Signature string `json:"signature,omitempty"`
 
 	// Tags are a list of tags that can be used to filter events.
 	Tags []string `json:"tags,omitempty"`
@@ -128,5 +101,17 @@ func (c *CloudEventHeader) Equals(other CloudEventHeader) bool {
 
 // Key returns the unique identifier for the CloudEvent.
 func (c CloudEventHeader) Key() string {
-	return c.Subject + "!" + c.Time.Format(time.RFC3339) + "!" + c.Type + "!" + c.Source + "!" + c.ID
+	timeStr := c.Time.Format(time.RFC3339)
+	var b strings.Builder
+	b.Grow(len(c.Subject) + 1 + len(timeStr) + 1 + len(c.Type) + 1 + len(c.Source) + 1 + len(c.ID))
+	b.WriteString(c.Subject)
+	b.WriteByte('!')
+	b.WriteString(timeStr)
+	b.WriteByte('!')
+	b.WriteString(c.Type)
+	b.WriteByte('!')
+	b.WriteString(c.Source)
+	b.WriteByte('!')
+	b.WriteString(c.ID)
+	return b.String()
 }
