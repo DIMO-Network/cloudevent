@@ -1,4 +1,4 @@
-package cloudevent
+package did
 
 import (
 	"errors"
@@ -160,6 +160,50 @@ func (e *ERC20DID) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// DecodeERC721orNFTDID attempts to decode a DID string as an ERC721DID or falls back to a legacy NFT DID.
+func DecodeERC721orNFTDID(did string) (ERC721DID, error) {
+	parts := strings.Split(did, ":")
+	if len(parts) == 5 {
+		return DecodeERC721DID(did)
+	}
+	return DecodeLegacyNFTDID(did)
+}
+
+// DecodeLegacyNFTDID decodes a legacy NFT DID using the format "did:nft:1:0xAddr_1".
+// You most likely want to use DecodeERC721DID instead.
+func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
+	parts := strings.Split(did, ":")
+	if len(parts) != 4 {
+		return ERC721DID{}, errInvalidDID
+	}
+	if parts[0] != "did" {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID prefix %s", errInvalidDID, parts[0])
+	}
+	if parts[1] != "nft" {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect DID method %s", errInvalidDID, parts[1])
+	}
+	chainID, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return ERC721DID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
+	}
+	nftParts := strings.Split(parts[3], "_")
+	if len(nftParts) != 2 {
+		return ERC721DID{}, fmt.Errorf("%w, incorrect NFT format %s", errInvalidDID, parts[3])
+	}
+	if !common.IsHexAddress(nftParts[0]) {
+		return ERC721DID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, nftParts[0])
+	}
+	tokenID, ok := big.NewInt(0).SetString(nftParts[1], 10)
+	if !ok {
+		return ERC721DID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
+	}
+	return ERC721DID{
+		ChainID:         chainID,
+		ContractAddress: common.HexToAddress(nftParts[0]),
+		TokenID:         tokenID,
+	}, nil
+}
+
 func decodeAddressDID(did string, method string) (uint64, common.Address, error) {
 	// sample did "did:method:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF"
 	parts := strings.Split(did, ":")
@@ -186,59 +230,4 @@ func decodeAddressDID(did string, method string) (uint64, common.Address, error)
 
 func encodeAddressDID(method string, chainID uint64, contractAddress common.Address) string {
 	return "did:" + method + ":" + strconv.FormatUint(chainID, 10) + ":" + contractAddress.Hex()
-}
-
-// DecodeERC721orNFTDID is a decoder that attempts to decode a DID string into an ERC721DID or a legacy NFT DID.
-func DecodeERC721orNFTDID(did string) (ERC721DID, error) {
-	parts := strings.Split(did, ":")
-	if len(parts) == 5 {
-		return DecodeERC721DID(did)
-	}
-	return DecodeLegacyNFTDID(did)
-}
-
-// DecodeLegacyNFTDID is a legacy decoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
-// You most likely want to use DecodeERC721DID instead.
-func DecodeLegacyNFTDID(did string) (ERC721DID, error) {
-	// sample did "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1"
-	parts := strings.Split(did, ":")
-	if len(parts) != 4 {
-		return ERC721DID{}, errInvalidDID
-	}
-	if parts[0] != "did" {
-		return ERC721DID{}, fmt.Errorf("%w, incorrect DID prefix %s", errInvalidDID, parts[0])
-	}
-	if parts[1] != "nft" {
-		return ERC721DID{}, fmt.Errorf("%w, incorrect DID method %s", errInvalidDID, parts[1])
-	}
-	nftParts := strings.Split(parts[3], "_")
-	if len(nftParts) != 2 {
-		return ERC721DID{}, fmt.Errorf("%w, incorrect NFT format %s", errInvalidDID, parts[3])
-	}
-	tokenID, ok := big.NewInt(0).SetString(nftParts[1], 10)
-	if !ok {
-		return ERC721DID{}, fmt.Errorf("%w, invalid token ID %s", errInvalidDID, nftParts[1])
-	}
-	if tokenID.Sign() < 0 {
-		return ERC721DID{}, fmt.Errorf("%w, token ID cannot be negative %s", errInvalidDID, nftParts[1])
-	}
-	addrBytes := nftParts[0]
-	if !common.IsHexAddress(addrBytes) {
-		return ERC721DID{}, fmt.Errorf("%w, invalid contract address %s", errInvalidDID, addrBytes)
-	}
-	chainID, err := strconv.ParseUint(parts[2], 10, 64)
-	if err != nil {
-		return ERC721DID{}, fmt.Errorf("%w, invalid chain ID %s", errInvalidDID, parts[2])
-	}
-
-	return ERC721DID{
-		ChainID:         chainID,
-		ContractAddress: common.HexToAddress(addrBytes),
-		TokenID:         tokenID,
-	}, nil
-}
-
-// EncodeLegacyNFTDID is a legacy encoder for NFT DIDs that use the format "did:nft:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_1".
-func EncodeLegacyNFTDID(chainID uint64, contractAddress common.Address, tokenID *big.Int) string {
-	return "did:nft:" + strconv.FormatUint(chainID, 10) + ":" + contractAddress.Hex() + "_" + tokenID.String()
 }

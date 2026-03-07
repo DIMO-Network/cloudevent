@@ -1,15 +1,15 @@
 module github.com/DIMO-Network/cloudevent
 
-go 1.24
+go 1.24.9
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.40.1
 	github.com/DIMO-Network/clickhouse-infra v0.0.5
-	github.com/DIMO-Network/model-garage v0.7.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/ethereum/go-ethereum v1.16.3
+	github.com/parquet-go/parquet-go v0.28.0
 	github.com/stretchr/testify v1.11.1
-	github.com/tidwall/sjson v1.2.5
+	github.com/tidwall/gjson v1.18.0
 )
 
 require (
@@ -74,6 +74,8 @@ require (
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/parquet-go/bitpack v1.0.0 // indirect
+	github.com/parquet-go/jsonlite v1.0.0 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -89,12 +91,12 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/testcontainers/testcontainers-go v0.38.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.38.0 // indirect
-	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/tursodatabase/libsql-client-go v0.0.0-20240902231107-85af5b9d094d // indirect
+	github.com/twpayne/go-geom v1.6.1 // indirect
 	github.com/vertica/vertica-sql-go v1.3.3 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20241112172322-ea1f63298f77 // indirect
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.108.1 // indirect
@@ -114,7 +116,7 @@ require (
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect

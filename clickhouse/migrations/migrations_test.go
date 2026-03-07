@@ -12,8 +12,10 @@ import (
 	"github.com/DIMO-Network/clickhouse-infra/pkg/connect/config"
 	"github.com/DIMO-Network/clickhouse-infra/pkg/container"
 	"github.com/DIMO-Network/cloudevent"
-	localch "github.com/DIMO-Network/cloudevent/pkg/clickhouse"
-	"github.com/DIMO-Network/cloudevent/pkg/clickhouse/migrations"
+	localch "github.com/DIMO-Network/cloudevent/clickhouse"
+	"github.com/DIMO-Network/cloudevent/clickhouse/migrations"
+	"github.com/DIMO-Network/cloudevent/did"
+	"github.com/DIMO-Network/cloudevent/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,12 +37,12 @@ func TestMigration(t *testing.T) {
 	err = migrations.RunGoose(ctx, []string{"up", "-v"}, db)
 	require.NoError(t, err, "Failed to run migration")
 	hdr := cloudevent.CloudEventHeader{
-		Subject:     cloudevent.ERC721DID{ChainID: 2, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
+		Subject:     did.ERC721DID{ChainID: 2, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
 		Time:        time.Now(),
-		Type:        cloudevent.TypeStatus,
+		Type:        types.TypeStatus,
 		Source:      common.HexToAddress("0xb57d6d57fca59d0517038c968a1b831b071fa679").String(),
 		DataVersion: "Stat/2.0.0",
-		Producer:    cloudevent.ERC721DID{ChainID: 3, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
+		Producer:    did.ERC721DID{ChainID: 3, ContractAddress: common.HexToAddress("0xc57d6d57fca59d0517038c968a1b831b071fa679"), TokenID: big.NewInt(3)}.String(),
 	}
 	err = insertIndex(conn, hdr)
 	require.NoError(t, err, "Failed to insert new index")
