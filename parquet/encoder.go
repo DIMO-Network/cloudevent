@@ -117,7 +117,6 @@ func convertEvent(event *cloudevent.RawEvent) (ParquetRow, error) {
 	}
 
 	row := ParquetRow{
-		SpecVersion:     cloudevent.SpecVersion,
 		Type:            event.Type,
 		Source:          event.Source,
 		Subject:         event.Subject,

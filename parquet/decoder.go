@@ -115,7 +115,7 @@ func convertRow(row *ParquetRow) (cloudevent.RawEvent, error) {
 	}
 
 	header := cloudevent.CloudEventHeader{
-		SpecVersion:     row.SpecVersion,
+		SpecVersion:     cloudevent.SpecVersion,
 		Type:            row.Type,
 		Source:          row.Source,
 		Subject:         row.Subject,
