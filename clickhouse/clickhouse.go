@@ -3,9 +3,10 @@ package clickhouse
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/DIMO-Network/cloudevent"
+	"github.com/DIMO-Network/cloudevent/ce"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -61,9 +62,14 @@ func CloudEventToSlice(event *cloudevent.CloudEventHeader) []any {
 // The order of the elements in the array match the order of the columns in the table.
 func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []any {
 	// Add non-column fields to extras
-	extras := AddNonColumnFieldsToExtras(event)
+	extras := cloudevent.AddNonColumnFieldsToExtras(event)
 
-	jsonExtra, _ := json.Marshal(extras)
+	var jsonExtra []byte
+	if extras == nil {
+		jsonExtra = []byte("{}")
+	} else {
+		jsonExtra, _ = json.Marshal(extras)
+	}
 	return []any{
 		event.Subject,
 		event.Time,
@@ -80,63 +86,62 @@ func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []
 
 // UnmarshalCloudEventSlice unmarshals a byte slice into an array of any for Clickhouse insertion.
 func UnmarshalCloudEventSlice(jsonArray []byte) ([]any, error) {
-	rawSlice := []json.RawMessage{}
-	err := json.Unmarshal(jsonArray, &rawSlice)
-	if err != nil {
+	var rawSlice []json.RawMessage
+	if err := json.Unmarshal(jsonArray, &rawSlice); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cloud event slice: %w", err)
 	}
 	if len(rawSlice) != 10 {
 		return nil, fmt.Errorf("invalid cloud event slice length: %d", len(rawSlice))
 	}
-	var subject string
-	var timestamp time.Time
-	var eventType string
-	var id string
-	var source string
-	var producer string
-	var dataContentType string
-	var dataVersion string
-	var extras string
-	var indexKey string
-	err = json.Unmarshal(rawSlice[0], &subject)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal subject: %w", err)
+
+	// Column order: subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey
+	var (
+		subject         string
+		timestamp       time.Time
+		eventType       string
+		id              string
+		source          string
+		producer        string
+		dataContentType string
+		dataVersion     string
+		extras          string
+		indexKey        string
+	)
+	unmarshal := func(i int, name string, ptr any) error {
+		if err := json.Unmarshal(rawSlice[i], ptr); err != nil {
+			return fmt.Errorf("failed to unmarshal %s: %w", name, err)
+		}
+		return nil
 	}
-	err = json.Unmarshal(rawSlice[1], &timestamp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal timestamp: %w", err)
+	if err := unmarshal(0, "subject", &subject); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[2], &eventType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal event type: %w", err)
+	if err := unmarshal(1, "timestamp", &timestamp); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[3], &id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal id: %w", err)
+	if err := unmarshal(2, "event type", &eventType); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[4], &source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal source: %w", err)
+	if err := unmarshal(3, "id", &id); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[5], &producer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal producer: %w", err)
+	if err := unmarshal(4, "source", &source); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[6], &dataContentType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal data content type: %w", err)
+	if err := unmarshal(5, "producer", &producer); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[7], &dataVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal data version: %w", err)
+	if err := unmarshal(6, "data content type", &dataContentType); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[8], &extras)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal extras: %w", err)
+	if err := unmarshal(7, "data version", &dataVersion); err != nil {
+		return nil, err
 	}
-	err = json.Unmarshal(rawSlice[9], &indexKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal index key: %w", err)
+	if err := unmarshal(8, "extras", &extras); err != nil {
+		return nil, err
+	}
+	if err := unmarshal(9, "index key", &indexKey); err != nil {
+		return nil, err
 	}
 	return []any{subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey}, nil
 }
@@ -149,11 +154,12 @@ func CloudEventToObjectKey(event *cloudevent.CloudEventHeader) string {
 	}
 	key := event.Key()
 
-	// Hash the base key and extract the first hex digit
 	hash := xxhash.Sum64String(key)
-	firstDigit := hash >> 60 // Extract first hex digit by shifting right 60 bits (getting highest 4 bits)
-	hexPrefix := hexChars[firstDigit]
+	firstDigit := hash >> 60
 
-	// Create final key with hex prefix
-	return string(hexPrefix) + key
+	var b strings.Builder
+	b.Grow(1 + len(key))
+	b.WriteByte(hexChars[firstDigit])
+	b.WriteString(key)
+	return b.String()
 }

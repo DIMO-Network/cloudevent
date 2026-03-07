@@ -31,28 +31,72 @@ type CloudEvent[A any] struct {
 }
 ```
 
+### Example CloudEvent JSON
+
+When working with DIMO services, your CloudEvent payload should follow this format:
+
+```json
+{
+  "id": "unique-event-identifier",
+  "source": "0xEthereumAddress",
+  "producer": "did:erc721:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:42",
+  "specversion": "1.0",
+  "subject": "did:erc721:1:0x123456789abcdef0123456789abcdef012345678:42",
+  "time": "2025-03-04T12:00:00Z",
+  "type": "dimo.status",
+  "datacontenttype": "application/json",
+  "dataversion": "default/v1.0",
+  "signature": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+  "tags": ["telemetry"],
+  "data": {
+    "signals": [
+      {
+        "name": "powertrainTransmissionTravelledDistance",
+        "timestamp": "2025-03-04T12:00:00Z",
+        "value": 12345.67
+      },
+      {
+        "name": "speed",
+        "timestamp": "2025-03-04T12:01:00Z",
+        "value": 55
+      },
+      {
+        "name": "powertrainType",
+        "timestamp": "2025-03-04T12:03:00Z",
+        "value": "COMBUSTION"
+      }
+    ],
+    "vin": "1GGCM82633A123456"
+  }
+}
+```
+
 ### CloudEvent Headers
 
 Each CloudEvent contains the following header fields:
 
-| Field           | Description                                                 |
-| --------------- | ----------------------------------------------------------- |
-| ID              | Unique identifier for the event                             |
-| Source          | Context in which the event happened                         |
-| Producer        | Specific instance/process that created the event            |
-| SpecVersion     | CloudEvents spec version (always "1.0")                     |
-| Subject         | Subject of the event within the producer's context          |
-| Time            | Time at which the event occurred                            |
-| Type            | Type of event (e.g., "dimo.status")                         |
-| DataContentType | MIME type for the data field (typically "application/json") |
-| DataSchema      | URI pointing to a schema for the data field                 |
-| DataVersion     | Version of the data type                                    |
-| Extras          | Additional custom fields                                    |
+| Field           | Description                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ID              | A unique identifier for the event. The combination of ID and Source must be unique.                                                     |
+| Source          | Typically an Ethereum address. In many DIMO services                                                                                    |
+| Producer        | The DID of the entity that produced the payload. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                                |
+| SpecVersion     | The version of CloudEvents specification used. This is always hardcoded as "1.0".                                                       |
+| Subject         | The DID which denotes the subject of the event. Ex. `did:erc721:<chainId>:<contractAddress>:<tokenId>`.                                 |
+| Time            | The time at which the event occurred. Format as RFC3339 timestamp.                                                                      |
+| Type            | Describes the type of event - must be one of the predefined DIMO types.                                                                 |
+| DataContentType | The MIME type for the data field. When using JSON (the most common case), this should be "application/json".                            |
+| DataSchema      | URI pointing to a schema for the data field.                                                                                            |
+| DataVersion     | An optional way for the data provider to specify the version of the data structure in the payload (e.g., "default/v1.0").               |
+| Signature       | An optional cryptographic signature of the CloudEvent's data field for verification purposes.                                           |
+| Tags            | An optional list of tags that can be used to filter and categorize a cloudevents (currently these are only used by `dimo.attestation`). |
+| Extras          | Additional custom fields.                                                                                                               |
 
 The DIMO-specific extensions to the CloudEvents specification include:
 
 - `Producer`: Provides additional context about the specific instance, process, or device that created the event
 - `DataVersion`: A DIMO-specific extension that is unique to each source. This can be used by a source to determine the shape of the data field, enabling version-based data processing
+- `Signature`: An optional cryptographic signature field for verifying the integrity and authenticity of the CloudEvent's data
+- `Tags`: An optional list of tags for filtering and categorizing events, useful for event organization and query optimization
 
 ### Event Uniqueness
 
@@ -74,6 +118,11 @@ The library defines several DIMO-specific event types:
 - `dimo.fingerprint`: Used for fingerprint updates
 - `dimo.verifiablecredential`: Used for verifiable credentials
 - `dimo.unknown`: Used for unknown events
+- `dimo.attestation`: Used for attestation events from a vehicle attestation.
+- `dimo.event`: Used for events from a vehicle event.
+- `dimo.trigger`: Used for trigger events from a vehicle trigger.
+- `dimo.sacd`: Used for cloudevents defining a SACD(Service Access Control Definition) agreement.
+- `dimo.sacd.template`: Used for cloudevents defining a template SACD agreement.
 
 DIMO services expect the `Type` field to be one of these predefined types. Using custom or undefined types may result in events being improperly processed or rejected by DIMO services.
 
@@ -81,15 +130,15 @@ DIMO services expect the `Type` field to be one of these predefined types. Using
 
 The library provides support for two types of DIDs:
 
-### NFT DID
+### ERC721 DID
 
-The NFT DID format is used to identify NFTs on a blockchain:
+The ERC721 DID format is used to identify ERC721 tokens on a blockchain:
 
 ```
-did:nft:<chainID>:<contractAddress>_<tokenID>
+did:erc721:<chainID>:<contractAddress>:<tokenID>
 ```
 
-Example: `did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123`
+Example: `did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123`
 
 - `chainID`: The blockchain network ID (e.g., 1 for Ethereum mainnet, 137 for Polygon)
 - `contractAddress`: Ethereum hex address of the NFT contract
@@ -115,13 +164,24 @@ Example: `did:ethr:1:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF`
 ```go
 event := cloudevent.CloudEvent[MyDataType]{
     CloudEventHeader: cloudevent.CloudEventHeader{
-        ID:       "unique-id",
-        Source:   "my-service",
-        Producer: "instance-1",
-        Subject:  "device-123",
-        Time:     time.Now().UTC(),
-        Type:     cloudevent.TypeStatus,
-        DataVersion: "1.0",  // Version of your data structure
+        ID:             "unique-id",
+        Source:         "0xConnectionLicenseAddress",
+        Producer:       cloudevent.ERC721DID{
+          ChainID: 1,
+          ContractAddress: "0x123456789abcdef0123456789abcdef012345678",
+          TokenID: big.NewInt(123),
+        }.String(),
+        Subject:         cloudevent.ERC721DID{
+          ChainID: 1,
+          ContractAddress: "0x123456789abcdef0123456789abcdef012345678",
+          TokenID: big.NewInt(123),
+        }.String(),
+        Time:           time.Now().UTC(),
+        Type:           cloudevent.TypeStatus,
+        DataContentType: "application/json",
+        DataVersion:    "default/v1.0",
+        Signature:      "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12",
+        Tags:           []string{"telemetry"},
     },
     Data: MyDataType{
         // Your data fields
@@ -132,14 +192,14 @@ event := cloudevent.CloudEvent[MyDataType]{
 ### Working with DIDs
 
 ```go
-// Parse an NFT DID
-nftDID, err := cloudevent.DecodeNFTDID("did:nft:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF_123")
+// Parse an ERC721 DID
+erc721DID, err := cloudevent.DecodeERC721DID("did:erc721:137:0xbA5738a18d83D41847dfFbDC6101d37C69c9B0cF:123")
 if err != nil {
     // Handle error
 }
 
 // Convert back to string
-didString := nftDID.String()
+didString := erc721DID.String()
 ```
 
 ## Development
