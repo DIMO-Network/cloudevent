@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/DIMO-Network/clickhouse-infra/pkg/migrate"
-	"github.com/DIMO-Network/cloudevent/pkg/clickhouse/migrations"
+	"github.com/DIMO-Network/cloudevent/clickhouse/migrations"
 )
 
 func main() {

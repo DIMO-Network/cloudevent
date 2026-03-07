@@ -1,0 +1,59 @@
+package cloudevent
+
+// RestoreNonColumnFields restores non-column fields from Extras.
+func RestoreNonColumnFields(event *CloudEventHeader) {
+	event.SpecVersion = SpecVersion
+	if event.Extras != nil {
+		delete(event.Extras, "specversion")
+	}
+	if len(event.Extras) == 0 {
+		return
+	}
+	if val, ok := event.Extras["dataschema"]; ok {
+		if typedVal, ok := val.(string); ok {
+			event.DataSchema = typedVal
+		}
+		delete(event.Extras, "dataschema")
+	}
+	if val, ok := event.Extras["signature"]; ok {
+		if typedVal, ok := val.(string); ok {
+			event.Signature = typedVal
+		}
+		delete(event.Extras, "signature")
+	}
+	if val, ok := event.Extras["tags"]; ok {
+		if anySlice, ok := val.([]any); ok {
+			typedSlice := make([]string, len(anySlice))
+			for i, v := range anySlice {
+				typedSlice[i] = v.(string)
+			}
+			event.Tags = typedSlice
+		}
+		delete(event.Extras, "tags")
+	}
+}
+
+// AddNonColumnFieldsToExtras adds fields without dedicated columns to Extras.
+// Returns nil when there are no extras and no non-column fields to add.
+func AddNonColumnFieldsToExtras(event *CloudEventHeader) map[string]any {
+	hasNonColumn := event.DataSchema != "" || event.Signature != "" || len(event.Tags) > 0
+	if !hasNonColumn && len(event.Extras) == 0 {
+		return nil
+	}
+
+	extras := make(map[string]any, len(event.Extras))
+	for k, v := range event.Extras {
+		extras[k] = v
+	}
+
+	if event.DataSchema != "" {
+		extras["dataschema"] = event.DataSchema
+	}
+	if event.Signature != "" {
+		extras["signature"] = event.Signature
+	}
+	if len(event.Tags) > 0 {
+		extras["tags"] = event.Tags
+	}
+	return extras
+}

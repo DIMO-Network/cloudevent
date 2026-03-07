@@ -1,4 +1,4 @@
-.PHONY: clean run build install dep test lint format docker migration tools tools-golangci-lint tools-model-garage codegen
+.PHONY: clean run build install dep test lint format docker migration tools tools-golangci-lint
 
 # Set the bin path
 SHELL := /bin/sh
@@ -52,12 +52,8 @@ lint: ## Run the linter
 add-migration: # Add a new migration to the database
 	go tool goose create ${name} sql -s --dir=pkg/migrations
 	
-generate: generate-codegen ## Generate all code
+generate: ## Generate all code
 	@go generate ./...
-	
-generate-codegen: ## Generate field accessors for CloudEventHeader
-	@echo "Generating field accessors..."
-	@go run ./pkg/codegen -output ./pkg/clickhouse/field_accessors_gen.go
 
 tools: tools-golangci-lint ## Install all tools
 
