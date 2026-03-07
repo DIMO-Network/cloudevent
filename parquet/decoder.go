@@ -40,7 +40,9 @@ func (pr *Reader) SeekToRow(rowIndex int64) (cloudevent.RawEvent, error) {
 		return cloudevent.RawEvent{}, fmt.Errorf("row index %d out of range [0, %d)", rowIndex, pr.reader.NumRows())
 	}
 
-	pr.reader.SeekToRow(rowIndex)
+	if err := pr.reader.SeekToRow(rowIndex); err != nil {
+		return cloudevent.RawEvent{}, fmt.Errorf("seeking to row %d: %w", rowIndex, err)
+	}
 
 	var rows [1]ParquetRow
 	_, err := pr.reader.Read(rows[:])
@@ -63,7 +65,7 @@ func Decode(r io.ReaderAt, size int64) ([]cloudevent.RawEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
+	defer func() { _ = pr.Close() }()
 
 	numRows := pr.NumRows()
 	if numRows == 0 {
@@ -97,7 +99,7 @@ func SeekToRow(r io.ReaderAt, size int64, rowIndex int64) (cloudevent.RawEvent, 
 	if err != nil {
 		return cloudevent.RawEvent{}, err
 	}
-	defer pr.Close()
+	defer func() { _ = pr.Close() }()
 
 	return pr.SeekToRow(rowIndex)
 }

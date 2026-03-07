@@ -390,7 +390,7 @@ func TestReader_SeekToRow(t *testing.T) {
 
 	pr, err := OpenReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 	require.NoError(t, err)
-	defer pr.Close()
+	defer func() { _ = pr.Close() }()
 
 	assert.Equal(t, int64(3), pr.NumRows())
 
@@ -418,7 +418,7 @@ func TestReader_SeekToRow_OutOfRange(t *testing.T) {
 
 	pr, err := OpenReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
 	require.NoError(t, err)
-	defer pr.Close()
+	defer func() { _ = pr.Close() }()
 
 	_, err = pr.SeekToRow(-1)
 	assert.Error(t, err)

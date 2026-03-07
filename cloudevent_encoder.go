@@ -100,7 +100,7 @@ func (c CloudEvent[A]) MarshalJSON() ([]byte, error) {
 	buf.Reset()
 
 	buf.WriteByte('{')
-	if err := c.CloudEventHeader.marshalHeaderTo(buf); err != nil {
+	if err := c.marshalHeaderTo(buf); err != nil {
 		bufPool.Put(buf)
 		return nil, err
 	}
