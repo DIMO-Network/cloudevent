@@ -24,7 +24,7 @@ const (
 	TypeSignals = "dimo.signals"
 
 	// TypeEvent is the event type for vehicle events
-	TypeEvent = "dimo.events"
+	TypeEvents = "dimo.events"
 
 	// TypeTrigger is the event type from a vehicle trigger.
 	TypeTrigger = "dimo.trigger"
