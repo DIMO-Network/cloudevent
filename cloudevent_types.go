@@ -5,6 +5,9 @@ const (
 	// TypeStatus is the event type for status updates.
 	TypeStatus = "dimo.status"
 
+	// TypeStatus is the event type for status updates.
+	TypeRawStatus = "dimo.raw.status"
+
 	// TypeFingerprint is the event type for fingerprint updates.
 	TypeFingerprint = "dimo.fingerprint"
 
@@ -18,7 +21,10 @@ const (
 	TypeUnknown = "dimo.unknown"
 
 	// TypeEvent is the event type for vehicle events
-	TypeEvent = "dimo.event"
+	TypeSignals = "dimo.signals"
+
+	// TypeEvent is the event type for vehicle events
+	TypeEvent = "dimo.events"
 
 	// TypeTrigger is the event type from a vehicle trigger.
 	TypeTrigger = "dimo.trigger"
