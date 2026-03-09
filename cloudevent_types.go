@@ -20,11 +20,17 @@ const (
 	// TypeUnknown is the event type for unknown events.
 	TypeUnknown = "dimo.unknown"
 
-	// TypeEvent is the event type for vehicle events
+	// TypeEvent is the event type for multiple signals
 	TypeSignals = "dimo.signals"
 
-	// TypeEvent is the event type for vehicle events
+	// TypeEvent is the event type for a single signal
+	TypeSignal = "dimo.signal"
+
+	// TypeEvent is the event type for multiple events
 	TypeEvents = "dimo.events"
+
+	// TypeEvent is the event type for a single event
+	TypeEvent = "dimo.event"
 
 	// TypeTrigger is the event type from a vehicle trigger.
 	TypeTrigger = "dimo.trigger"
