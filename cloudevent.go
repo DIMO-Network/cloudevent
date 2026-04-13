@@ -56,6 +56,9 @@ type CloudEventHeader struct {
 	// Signature hold the signature of the a cloudevent's data field.
 	Signature string `json:"signature,omitempty"`
 
+	// RawEventID optionally links a parsed event to the ID of its backing raw event.
+	RawEventID string `json:"raweventid,omitempty"`
+
 	// Tags are a list of tags that can be used to filter events.
 	Tags []string `json:"tags,omitempty"`
 

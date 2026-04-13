@@ -238,6 +238,20 @@ func TestRoundtrip_Signature(t *testing.T) {
 	assert.Equal(t, "0xdeadbeef", events[0].Signature)
 }
 
+func TestRoundtrip_RawEventID(t *testing.T) {
+	t.Parallel()
+	original := makeEvent("raw-ref-evt", json.RawMessage(`{}`))
+	original.RawEventID = "raw-event-123"
+
+	buf, _ := encodeToBuffer(t, []cloudevent.RawEvent{original}, "rawref")
+
+	r := bytes.NewReader(buf.Bytes())
+	events, err := Decode(r, int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "raw-event-123", events[0].RawEventID)
+}
+
 func TestRoundtrip_Tags(t *testing.T) {
 	t.Parallel()
 	original := makeEvent("tag-evt", json.RawMessage(`{}`))
@@ -479,9 +493,9 @@ func TestIsParquetRef(t *testing.T) {
 func TestParseIndexKey_Valid(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		input     string
-		wantKey   string
-		wantRow   int64
+		input   string
+		wantKey string
+		wantRow int64
 	}{
 		{"obj/key#0", "obj/key", 0},
 		{"obj/key#42", "obj/key", 42},
@@ -551,6 +565,7 @@ func TestRoundtrip_AllNonColumnFields(t *testing.T) {
 	original := makeEvent("full-evt", json.RawMessage(`{"complete":true}`))
 	original.DataSchema = "https://schema.dimo.zone/status/v2"
 	original.Signature = "0xabcdef1234567890"
+	original.RawEventID = "raw-event-123"
 	original.Tags = []string{"tagged", "event"}
 	original.Extras = map[string]any{
 		"custom": "value",
@@ -566,9 +581,11 @@ func TestRoundtrip_AllNonColumnFields(t *testing.T) {
 	got := events[0]
 	assert.Equal(t, original.DataSchema, got.DataSchema)
 	assert.Equal(t, original.Signature, got.Signature)
+	assert.Equal(t, original.RawEventID, got.RawEventID)
 	assert.Equal(t, original.Tags, got.Tags)
 	assert.Equal(t, "value", got.Extras["custom"])
 	assert.NotContains(t, got.Extras, "signature")
+	assert.NotContains(t, got.Extras, "raweventid")
 }
 
 func TestRoundtrip_EmptyStringFields(t *testing.T) {

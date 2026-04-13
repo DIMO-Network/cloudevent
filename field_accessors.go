@@ -21,6 +21,12 @@ func RestoreNonColumnFields(event *CloudEventHeader) {
 		}
 		delete(event.Extras, "signature")
 	}
+	if val, ok := event.Extras["raweventid"]; ok {
+		if typedVal, ok := val.(string); ok {
+			event.RawEventID = typedVal
+		}
+		delete(event.Extras, "raweventid")
+	}
 	if val, ok := event.Extras["tags"]; ok {
 		if anySlice, ok := val.([]any); ok {
 			typedSlice := make([]string, len(anySlice))
@@ -36,7 +42,7 @@ func RestoreNonColumnFields(event *CloudEventHeader) {
 // AddNonColumnFieldsToExtras adds fields without dedicated columns to Extras.
 // Returns nil when there are no extras and no non-column fields to add.
 func AddNonColumnFieldsToExtras(event *CloudEventHeader) map[string]any {
-	hasNonColumn := event.DataSchema != "" || event.Signature != "" || len(event.Tags) > 0
+	hasNonColumn := event.DataSchema != "" || event.Signature != "" || event.RawEventID != "" || len(event.Tags) > 0
 	if !hasNonColumn && len(event.Extras) == 0 {
 		return nil
 	}
@@ -51,6 +57,9 @@ func AddNonColumnFieldsToExtras(event *CloudEventHeader) map[string]any {
 	}
 	if event.Signature != "" {
 		extras["signature"] = event.Signature
+	}
+	if event.RawEventID != "" {
+		extras["raweventid"] = event.RawEventID
 	}
 	if len(event.Tags) > 0 {
 		extras["tags"] = event.Tags

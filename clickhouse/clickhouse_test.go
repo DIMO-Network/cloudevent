@@ -189,6 +189,7 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 			SpecVersion: "1.0",
 			DataSchema:  "https://example.com/schema",
 			Signature:   "test-signature",
+			RawEventID:  "raw-event-123",
 			Tags:        []string{"tag1", "tag2"},
 		}
 
@@ -198,6 +199,7 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 		assert.NotContains(t, extras, "specversion")
 		assert.Equal(t, "https://example.com/schema", extras["dataschema"])
 		assert.Equal(t, "test-signature", extras["signature"])
+		assert.Equal(t, "raw-event-123", extras["raweventid"])
 		assert.Equal(t, []string{"tag1", "tag2"}, extras["tags"])
 	})
 
@@ -207,6 +209,7 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 			SpecVersion: "1.0",
 			DataSchema:  "https://example.com/schema",
 			Signature:   "test-signature",
+			RawEventID:  "raw-event-123",
 			Tags:        []string{"tag1", "tag2"},
 			Extras: map[string]any{
 				"existing": "value",
@@ -224,11 +227,13 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 		assert.NotContains(t, extras, "specversion")
 		assert.Equal(t, "https://example.com/schema", extras["dataschema"])
 		assert.Equal(t, "test-signature", extras["signature"])
+		assert.Equal(t, "raw-event-123", extras["raweventid"])
 		assert.Equal(t, []string{"tag1", "tag2"}, extras["tags"])
 
 		// Verify original extras map is not modified
 		assert.NotContains(t, event.Extras, "dataschema")
 		assert.NotContains(t, event.Extras, "signature")
+		assert.NotContains(t, event.Extras, "raweventid")
 		assert.NotContains(t, event.Extras, "tags")
 	})
 
@@ -238,6 +243,7 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 			SpecVersion: "",  // zero value
 			DataSchema:  "",  // zero value
 			Signature:   "",  // zero value
+			RawEventID:  "",  // zero value
 			Tags:        nil, // zero value
 		}
 
@@ -247,6 +253,7 @@ func TestAddNonColumnFieldsToExtras(t *testing.T) {
 		assert.NotContains(t, extras, "specversion")
 		assert.NotContains(t, extras, "dataschema")
 		assert.NotContains(t, extras, "signature")
+		assert.NotContains(t, extras, "raweventid")
 		assert.NotContains(t, extras, "tags")
 	})
 
@@ -280,6 +287,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 		assert.Equal(t, "1.0", event.SpecVersion)
 		assert.Empty(t, event.DataSchema)
 		assert.Empty(t, event.Signature)
+		assert.Empty(t, event.RawEventID)
 		assert.Nil(t, event.Tags)
 	})
 
@@ -295,6 +303,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 		assert.Equal(t, "1.0", event.SpecVersion)
 		assert.Empty(t, event.DataSchema)
 		assert.Empty(t, event.Signature)
+		assert.Empty(t, event.RawEventID)
 		assert.Nil(t, event.Tags)
 	})
 
@@ -305,6 +314,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 				"specversion": "1.0",
 				"dataschema":  "https://example.com/schema",
 				"signature":   "test-signature",
+				"raweventid":  "raw-event-123",
 				"tags":        []any{"tag1", "tag2"},
 				"other":       "should-remain",
 			},
@@ -316,12 +326,14 @@ func TestRestoreNonColumnFields(t *testing.T) {
 		assert.Equal(t, "1.0", event.SpecVersion)
 		assert.Equal(t, "https://example.com/schema", event.DataSchema)
 		assert.Equal(t, "test-signature", event.Signature)
+		assert.Equal(t, "raw-event-123", event.RawEventID)
 		assert.Equal(t, []string{"tag1", "tag2"}, event.Tags)
 
 		// Check that non-column fields are removed from extras
 		assert.NotContains(t, event.Extras, "specversion")
 		assert.NotContains(t, event.Extras, "dataschema")
 		assert.NotContains(t, event.Extras, "signature")
+		assert.NotContains(t, event.Extras, "raweventid")
 		assert.NotContains(t, event.Extras, "tags")
 		assert.Contains(t, event.Extras, "other") // other fields remain
 	})
@@ -332,6 +344,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 			Extras: map[string]any{
 				"specversion": 123,           // wrong type
 				"dataschema":  []int{},       // wrong type
+				"raweventid":  999,           // wrong type
 				"tags":        "not-a-slice", // wrong type
 			},
 		}
@@ -342,11 +355,13 @@ func TestRestoreNonColumnFields(t *testing.T) {
 		// SpecVersion is always hardcoded to "1.0" regardless of extras
 		assert.Equal(t, "1.0", event.SpecVersion)
 		assert.Empty(t, event.DataSchema)
+		assert.Empty(t, event.RawEventID)
 		assert.Nil(t, event.Tags)
 
 		// Wrong-typed values should still be removed from extras for some fields
 		assert.NotContains(t, event.Extras, "specversion")
 		assert.NotContains(t, event.Extras, "dataschema")
+		assert.NotContains(t, event.Extras, "raweventid")
 		assert.NotContains(t, event.Extras, "tags")
 	})
 
@@ -355,7 +370,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 			ID: "test-id",
 			Extras: map[string]any{
 				"specversion": "1.0",
-				// missing dataschema, signature, tags
+				// missing dataschema, signature, raweventid, tags
 				"other": "value",
 			},
 		}
@@ -366,6 +381,7 @@ func TestRestoreNonColumnFields(t *testing.T) {
 		assert.Equal(t, "1.0", event.SpecVersion)
 		assert.Empty(t, event.DataSchema)
 		assert.Empty(t, event.Signature)
+		assert.Empty(t, event.RawEventID)
 		assert.Nil(t, event.Tags)
 
 		// specversion should be removed, other should remain

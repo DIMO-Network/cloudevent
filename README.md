@@ -88,6 +88,7 @@ Each CloudEvent contains the following header fields:
 | DataSchema      | URI pointing to a schema for the data field.                                                                                            |
 | DataVersion     | An optional way for the data provider to specify the version of the data structure in the payload (e.g., "default/v1.0").               |
 | Signature       | An optional cryptographic signature of the CloudEvent's data field for verification purposes.                                           |
+| RawEventID      | An optional identifier linking a parsed CloudEvent back to its raw image or PDF event.                                                  |
 | Tags            | An optional list of tags that can be used to filter and categorize a cloudevents (currently these are only used by `dimo.attestation`). |
 | Extras          | Additional custom fields.                                                                                                               |
 
@@ -96,6 +97,7 @@ The DIMO-specific extensions to the CloudEvents specification include:
 - `Producer`: Provides additional context about the specific instance, process, or device that created the event
 - `DataVersion`: A DIMO-specific extension that is unique to each source. This can be used by a source to determine the shape of the data field, enabling version-based data processing
 - `Signature`: An optional cryptographic signature field for verifying the integrity and authenticity of the CloudEvent's data
+- `RawEventID`: An optional identifier pointing from a parsed event to its raw source event
 - `Tags`: An optional list of tags for filtering and categorizing events, useful for event organization and query optimization
 
 ### Event Uniqueness
