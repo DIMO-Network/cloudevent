@@ -70,6 +70,9 @@ func (c *CloudEventHeader) marshalHeaderTo(buf *bytes.Buffer) error {
 	if c.Signature != "" {
 		writeStringField(buf, "signature", c.Signature)
 	}
+	if c.RawEventID != "" {
+		writeStringField(buf, "raweventid", c.RawEventID)
+	}
 	if len(c.Tags) > 0 {
 		buf.WriteString(`,"tags":[`)
 		for i, tag := range c.Tags {

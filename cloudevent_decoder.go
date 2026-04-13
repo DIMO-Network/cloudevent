@@ -12,7 +12,7 @@ import (
 var knownHeaderFields = map[string]struct{}{
 	"specversion": {}, "type": {}, "source": {}, "subject": {}, "id": {},
 	"time": {}, "datacontenttype": {}, "dataschema": {}, "dataversion": {},
-	"producer": {}, "signature": {}, "tags": {},
+	"producer": {}, "signature": {}, "raweventid": {}, "tags": {},
 }
 
 // unmarshalHeader parses CloudEvent JSON with gjson and returns the populated
@@ -34,6 +34,7 @@ func unmarshalHeader(data []byte) (CloudEventHeader, []byte, string, error) {
 	header.DataSchema = result.Get("dataschema").Str
 	header.DataVersion = result.Get("dataversion").Str
 	header.Signature = result.Get("signature").Str
+	header.RawEventID = result.Get("raweventid").Str
 
 	if tr := result.Get("time"); tr.Exists() {
 		if tr.Type != gjson.String {

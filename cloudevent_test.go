@@ -90,6 +90,39 @@ func TestCloudEvent_MarshalJSON(t *testing.T) {
 				}
 			}`,
 		},
+		{
+			name: "event with raw event id",
+			event: cloudevent.CloudEvent[TestData]{
+				CloudEventHeader: cloudevent.CloudEventHeader{
+					ID:          "789",
+					Source:      "test-source",
+					Producer:    "test-producer",
+					SpecVersion: cloudevent.SpecVersion,
+					Subject:     "test-subject",
+					Time:        now,
+					Type:        cloudevent.TypeFingerprint,
+					RawEventID:  "raw-event-123",
+				},
+				Data: TestData{
+					Message: "test",
+					Count:   2,
+				},
+			},
+			expected: `{
+				"id": "789",
+				"source": "test-source",
+				"producer": "test-producer",
+				"specversion": "1.0",
+				"subject": "test-subject",
+				"time": "` + now.Format(time.RFC3339Nano) + `",
+				"type": "dimo.fingerprint",
+				"raweventid": "raw-event-123",
+				"data": {
+					"message": "test",
+					"count": 2
+				}
+			}`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -184,6 +217,39 @@ func TestCloudEvent_UnmarshalJSON(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "event with raw event id",
+			json: `{
+				"id": "789",
+				"source": "test-source",
+				"producer": "test-producer",
+				"specversion": "1.0",
+				"subject": "test-subject",
+				"time": "` + now.Format(time.RFC3339Nano) + `",
+				"type": "dimo.fingerprint",
+				"raweventid": "raw-event-123",
+				"data": {
+					"message": "test",
+					"count": 2
+				}
+			}`,
+			expected: cloudevent.CloudEvent[TestData]{
+				CloudEventHeader: cloudevent.CloudEventHeader{
+					ID:          "789",
+					Source:      "test-source",
+					Producer:    "test-producer",
+					SpecVersion: cloudevent.SpecVersion,
+					Subject:     "test-subject",
+					Time:        now,
+					Type:        cloudevent.TypeFingerprint,
+					RawEventID:  "raw-event-123",
+				},
+				Data: TestData{
+					Message: "test",
+					Count:   2,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -251,6 +317,29 @@ func TestCloudEventHeader_MarshalJSON(t *testing.T) {
 				"type": "dimo.fingerprint",
 				"extra1": "value1",
 				"extra2": 123
+			}`,
+		},
+		{
+			name: "header with raw event id",
+			header: cloudevent.CloudEventHeader{
+				ID:          "789",
+				Source:      "test-source",
+				Producer:    "test-producer",
+				SpecVersion: cloudevent.SpecVersion,
+				Subject:     "test-subject",
+				Time:        now,
+				Type:        cloudevent.TypeFingerprint,
+				RawEventID:  "raw-event-123",
+			},
+			expected: `{
+				"id": "789",
+				"source": "test-source",
+				"producer": "test-producer",
+				"specversion": "1.0",
+				"subject": "test-subject",
+				"time": "` + now.Format(time.RFC3339Nano) + `",
+				"type": "dimo.fingerprint",
+				"raweventid": "raw-event-123"
 			}`,
 		},
 	}
@@ -330,6 +419,33 @@ func TestCloudEventHeader_UnmarshalJSON(t *testing.T) {
 				Extras: map[string]any{
 					"extra1": "value1",
 					"extra2": float64(123),
+				},
+			},
+		},
+		{
+			name: "header with raw event id",
+			json: `{
+				"id": "789",
+				"source": "test-source",
+				"producer": "test-producer",
+				"specversion": "1.0",
+				"subject": "test-subject",
+				"time": "` + now.Format(time.RFC3339Nano) + `",
+				"type": "dimo.fingerprint",
+				"raweventid": "raw-event-123",
+				"extra1": "value1"
+			}`,
+			expected: cloudevent.CloudEventHeader{
+				ID:          "789",
+				Source:      "test-source",
+				Producer:    "test-producer",
+				SpecVersion: cloudevent.SpecVersion,
+				Subject:     "test-subject",
+				Time:        now,
+				Type:        cloudevent.TypeFingerprint,
+				RawEventID:  "raw-event-123",
+				Extras: map[string]any{
+					"extra1": "value1",
 				},
 			},
 		},
