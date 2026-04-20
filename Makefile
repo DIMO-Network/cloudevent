@@ -1,4 +1,4 @@
-.PHONY: clean run build install dep test lint format docker migration tools tools-golangci-lint
+.PHONY: clean run build install dep test lint format docker migration tools tools-golangci-lint clickhouse
 
 # Set the bin path
 SHELL := /bin/sh
@@ -60,3 +60,6 @@ tools: tools-golangci-lint ## Install all tools
 tools-golangci-lint: ## Install golangci-lint
 	@mkdir -p $(PATHINSTBIN)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | BINARY=golangci-lint bash -s -- ${GOLANGCI_VERSION}
+
+clickhouse: ## Run the clickhouse container
+	go run ./cmd/clickhouse-container
