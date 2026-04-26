@@ -33,7 +33,7 @@ func TestCloudEventToSlice(t *testing.T) {
 
 	// Test CloudEventToSlice
 	slice := CloudEventToSlice(event)
-	require.Len(t, slice, 10)
+	require.Len(t, slice, 11)
 
 	// Verify the order and values of the slice
 	assert.Equal(t, event.Subject, slice[0])
@@ -57,6 +57,9 @@ func TestCloudEventToSlice(t *testing.T) {
 	// Verify index key
 	expectedKey := CloudEventToObjectKey(event)
 	assert.Equal(t, expectedKey, slice[9])
+
+	// data_index_key is empty for CloudEventToSlice (payload is not external)
+	assert.Equal(t, "", slice[10])
 }
 
 func TestCloudEventToSliceWithKey(t *testing.T) {
@@ -82,7 +85,7 @@ func TestCloudEventToSliceWithKey(t *testing.T) {
 
 	customKey := "custom-key"
 	slice := CloudEventToSliceWithKey(event, customKey)
-	require.Len(t, slice, 10)
+	require.Len(t, slice, 11)
 
 	// Verify the order and values of the slice
 	assert.Equal(t, event.Subject, slice[0])
@@ -105,6 +108,38 @@ func TestCloudEventToSliceWithKey(t *testing.T) {
 
 	// Verify custom key is used
 	assert.Equal(t, customKey, slice[9])
+
+	// data_index_key is empty for CloudEventToSliceWithKey (payload is not external)
+	assert.Equal(t, "", slice[10])
+}
+
+func TestStoredEventToSlice(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	stored := &cloudevent.StoredEvent{
+		RawEvent: cloudevent.RawEvent{
+			CloudEventHeader: cloudevent.CloudEventHeader{
+				ID:              "test-id",
+				Source:          "test-source",
+				Producer:        "test-producer",
+				SpecVersion:     "1.0",
+				Subject:         "test-subject",
+				Time:            now,
+				Type:            "test.type",
+				DataContentType: "image/jpeg",
+				DataVersion:     "v1",
+			},
+		},
+		DataIndexKey: "payloads/abc123.jpg",
+	}
+
+	slice := StoredEventToSlice(stored, "bundle/key#7")
+	require.Len(t, slice, 11)
+
+	assert.Equal(t, stored.Subject, slice[0])
+	assert.Equal(t, "bundle/key#7", slice[9])
+	assert.Equal(t, "payloads/abc123.jpg", slice[10])
 }
 
 func TestUnmarshalCloudEventSlice(t *testing.T) {
@@ -122,6 +157,7 @@ func TestUnmarshalCloudEventSlice(t *testing.T) {
 		"v1",
 		`{"extra1":"value1","extra2":123}`,
 		"test-key",
+		"test-data-key",
 	}
 
 	// Marshal the slice to JSON

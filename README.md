@@ -110,7 +110,14 @@ A CloudEvent is uniquely identified by the combination of the following fields:
 - `Source`
 - `ID`
 
-This combination forms the "index key" for the event and is used for deduplication and retrieval purposes.
+This combination is the event's logical key (see `CloudEventHeader.Key()`) and is used for deduplication.
+
+### Storage keys
+
+These are storage pointers, set server-side by the ingestion pipeline. They are **not** part of the CloudEvent wire format and must never be set from producer-supplied input.
+
+- `index_key`: pointer to the backing object holding this event's row. For events grouped into a Parquet bundle, the format is `<bundleObjectKey>#<rowOffset>` (see `parquet.ParseIndexKey`). For singleton events, it's the standalone object's key (see `clickhouse.CloudEventToObjectKey`).
+- `data_index_key`: pointer to the external object holding this event's payload, when the payload is stored out-of-band (e.g. a large image). Empty when the payload is inline in the row's `data` / `data_base64`. Carried on `cloudevent.StoredEvent.DataIndexKey` at write time and stored as a column in both ClickHouse and the Parquet bundle.
 
 ### DIMO Event Types
 

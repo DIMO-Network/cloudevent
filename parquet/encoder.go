@@ -53,7 +53,12 @@ func WithWriteBufferSize(n int) Option {
 // Encode writes events as Snappy-compressed Parquet to w. Each event is assigned
 // an index key in the format "objectKey#rowOffset". The returned map contains
 // the event index to index key mapping.
-func Encode(w io.Writer, events []cloudevent.RawEvent, objectKey string, opts ...Option) (map[int]string, error) {
+//
+// Each StoredEvent's DataIndexKey is written into the row so that a reader
+// holding a bundle alone can locate any externally-stored payload without
+// consulting ClickHouse. Leave DataIndexKey empty when the payload is inline
+// in Data / DataBase64.
+func Encode(w io.Writer, events []cloudevent.StoredEvent, objectKey string, opts ...Option) (map[int]string, error) {
 	cfg := EncoderConfig{
 		MaxRowsPerRowGroup: 10000,
 	}
@@ -101,8 +106,8 @@ func Encode(w io.Writer, events []cloudevent.RawEvent, objectKey string, opts ..
 	return indexKeys, nil
 }
 
-// convertEvent transforms a single CloudEvent into a ParquetRow.
-func convertEvent(event *cloudevent.RawEvent) (ParquetRow, error) {
+// convertEvent transforms a single StoredEvent into a ParquetRow.
+func convertEvent(event *cloudevent.StoredEvent) (ParquetRow, error) {
 	extras := cloudevent.AddNonColumnFieldsToExtras(&event.CloudEventHeader)
 
 	var extrasJSON []byte
@@ -126,6 +131,7 @@ func convertEvent(event *cloudevent.RawEvent) (ParquetRow, error) {
 		DataVersion:     event.DataVersion,
 		Producer:        event.Producer,
 		Extras:          string(extrasJSON),
+		DataIndexKey:    event.DataIndexKey,
 	}
 
 	if event.DataBase64 != "" {
