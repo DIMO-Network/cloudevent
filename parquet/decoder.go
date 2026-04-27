@@ -35,19 +35,19 @@ func (pr *Reader) NumRows() int64 {
 
 // SeekToRow retrieves a single row by index.
 // The rowIndex must be in the range [0, NumRows()).
-func (pr *Reader) SeekToRow(rowIndex int64) (cloudevent.RawEvent, error) {
+func (pr *Reader) SeekToRow(rowIndex int64) (cloudevent.StoredEvent, error) {
 	if rowIndex < 0 || rowIndex >= pr.reader.NumRows() {
-		return cloudevent.RawEvent{}, fmt.Errorf("row index %d out of range [0, %d)", rowIndex, pr.reader.NumRows())
+		return cloudevent.StoredEvent{}, fmt.Errorf("row index %d out of range [0, %d)", rowIndex, pr.reader.NumRows())
 	}
 
 	if err := pr.reader.SeekToRow(rowIndex); err != nil {
-		return cloudevent.RawEvent{}, fmt.Errorf("seeking to row %d: %w", rowIndex, err)
+		return cloudevent.StoredEvent{}, fmt.Errorf("seeking to row %d: %w", rowIndex, err)
 	}
 
 	var rows [1]ParquetRow
 	_, err := pr.reader.Read(rows[:])
 	if err != nil && err != io.EOF {
-		return cloudevent.RawEvent{}, fmt.Errorf("reading parquet row: %w", err)
+		return cloudevent.StoredEvent{}, fmt.Errorf("reading parquet row: %w", err)
 	}
 
 	return convertRow(&rows[0])
@@ -60,7 +60,7 @@ func (pr *Reader) Close() error {
 
 // Decode reads a parquet file from r and returns the decoded CloudEvents.
 // The size parameter must be the total size of the parquet data in bytes.
-func Decode(r io.ReaderAt, size int64) ([]cloudevent.RawEvent, error) {
+func Decode(r io.ReaderAt, size int64) ([]cloudevent.StoredEvent, error) {
 	pr, err := OpenReader(r, size)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func Decode(r io.ReaderAt, size int64) ([]cloudevent.RawEvent, error) {
 		return nil, fmt.Errorf("reading parquet rows: %w", err)
 	}
 
-	events := make([]cloudevent.RawEvent, len(rows))
+	events := make([]cloudevent.StoredEvent, len(rows))
 	for i := range rows {
 		event, err := convertRow(&rows[i])
 		if err != nil {
@@ -94,23 +94,23 @@ func Decode(r io.ReaderAt, size int64) ([]cloudevent.RawEvent, error) {
 // The rowIndex must be in the range [0, numRows).
 // For multiple seeks on the same file, use OpenReader instead to avoid
 // re-parsing the parquet footer on each call.
-func SeekToRow(r io.ReaderAt, size int64, rowIndex int64) (cloudevent.RawEvent, error) {
+func SeekToRow(r io.ReaderAt, size int64, rowIndex int64) (cloudevent.StoredEvent, error) {
 	pr, err := OpenReader(r, size)
 	if err != nil {
-		return cloudevent.RawEvent{}, err
+		return cloudevent.StoredEvent{}, err
 	}
 	defer func() { _ = pr.Close() }()
 
 	return pr.SeekToRow(rowIndex)
 }
 
-// convertRow transforms a single ParquetRow back into a RawEvent.
+// convertRow transforms a single ParquetRow back into a StoredEvent.
 // This is the inverse of convertEvent in encoder.go.
-func convertRow(row *ParquetRow) (cloudevent.RawEvent, error) {
+func convertRow(row *ParquetRow) (cloudevent.StoredEvent, error) {
 	var extras map[string]any
 	if row.Extras != "" && row.Extras != "{}" {
 		if err := json.Unmarshal([]byte(row.Extras), &extras); err != nil {
-			return cloudevent.RawEvent{}, fmt.Errorf("unmarshaling extras: %w", err)
+			return cloudevent.StoredEvent{}, fmt.Errorf("unmarshaling extras: %w", err)
 		}
 	}
 
@@ -129,8 +129,11 @@ func convertRow(row *ParquetRow) (cloudevent.RawEvent, error) {
 
 	cloudevent.RestoreNonColumnFields(&header)
 
-	event := cloudevent.RawEvent{
-		CloudEventHeader: header,
+	event := cloudevent.StoredEvent{
+		RawEvent: cloudevent.RawEvent{
+			CloudEventHeader: header,
+		},
+		DataIndexKey: row.DataIndexKey,
 	}
 
 	if len(row.DataBase64) > 0 {

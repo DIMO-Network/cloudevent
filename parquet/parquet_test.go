@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/DIMO-Network/cloudevent"
+	pq "github.com/parquet-go/parquet-go"
+	"github.com/parquet-go/parquet-go/compress/snappy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,10 +33,17 @@ func makeEvent(id string, data json.RawMessage) cloudevent.RawEvent {
 }
 
 // encodeToBuffer is a test helper that encodes events and returns the buffer.
+// Each RawEvent is wrapped in a StoredEvent with empty DataIndexKey; for
+// tests that need a non-empty DataIndexKey, build []cloudevent.StoredEvent
+// directly and call Encode.
 func encodeToBuffer(t *testing.T, events []cloudevent.RawEvent, objectKey string, opts ...Option) (*bytes.Buffer, map[int]string) {
 	t.Helper()
+	stored := make([]cloudevent.StoredEvent, len(events))
+	for i, ev := range events {
+		stored[i] = cloudevent.StoredEvent{RawEvent: ev}
+	}
 	var buf bytes.Buffer
-	keys, err := Encode(&buf, events, objectKey, opts...)
+	keys, err := Encode(&buf, stored, objectKey, opts...)
 	require.NoError(t, err)
 	return &buf, keys
 }
@@ -81,8 +90,8 @@ func TestEncode_EmptySlice(t *testing.T) {
 
 func TestEncode_WithOptions(t *testing.T) {
 	t.Parallel()
-	events := []cloudevent.RawEvent{
-		makeEvent("evt-1", json.RawMessage(`{"x":1}`)),
+	events := []cloudevent.StoredEvent{
+		{RawEvent: makeEvent("evt-1", json.RawMessage(`{"x":1}`))},
 	}
 
 	var buf bytes.Buffer
@@ -586,6 +595,87 @@ func TestRoundtrip_AllNonColumnFields(t *testing.T) {
 	assert.Equal(t, "value", got.Extras["custom"])
 	assert.NotContains(t, got.Extras, "signature")
 	assert.NotContains(t, got.Extras, "raweventid")
+}
+
+func TestRoundtrip_DataIndexKey(t *testing.T) {
+	t.Parallel()
+	stored := []cloudevent.StoredEvent{
+		{
+			RawEvent:     makeEvent("inline", json.RawMessage(`{"x":1}`)),
+			DataIndexKey: "",
+		},
+		{
+			RawEvent:     makeEvent("external", nil),
+			DataIndexKey: "payloads/2025/06/15/external-1.bin",
+		},
+	}
+	// External event has no inline payload.
+	stored[1].Data = nil
+
+	var buf bytes.Buffer
+	_, err := Encode(&buf, stored, "mixed")
+	require.NoError(t, err)
+
+	r := bytes.NewReader(buf.Bytes())
+	got, err := Decode(r, int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	assert.Equal(t, "", got[0].DataIndexKey)
+	assert.JSONEq(t, `{"x":1}`, string(got[0].Data))
+
+	assert.Equal(t, "payloads/2025/06/15/external-1.bin", got[1].DataIndexKey)
+	assert.Empty(t, got[1].Data)
+	assert.Empty(t, got[1].DataBase64)
+}
+
+// oldParquetRow mirrors the pre-data_index_key schema. Used to verify that
+// the current decoder reads bundles written before data_index_key was added,
+// returning empty DataIndexKey for those rows.
+type oldParquetRow struct {
+	Subject         string    `parquet:"subject"`
+	Time            time.Time `parquet:"time,timestamp(millisecond)"`
+	Type            string    `parquet:"type"`
+	ID              string    `parquet:"id"`
+	Source          string    `parquet:"source"`
+	Producer        string    `parquet:"producer"`
+	DataContentType string    `parquet:"data_content_type"`
+	DataVersion     string    `parquet:"data_version"`
+	Extras          string    `parquet:"extras"`
+	Data            *string   `parquet:"data,optional"`
+	DataBase64      []byte    `parquet:"data_base64,optional"`
+}
+
+func TestDecode_OldBundleWithoutDataIndexKey(t *testing.T) {
+	t.Parallel()
+
+	payload := `{"speed":55}`
+	row := oldParquetRow{
+		Subject:         "did:erc721:137:0xABCD:1",
+		Time:            time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC),
+		Type:            "dimo.status",
+		ID:              "old-evt",
+		Source:          "0xABCD",
+		Producer:        "0x1234",
+		DataContentType: "application/json",
+		DataVersion:     "v2.0.0",
+		Extras:          "{}",
+		Data:            &payload,
+	}
+
+	var buf bytes.Buffer
+	w := pq.NewGenericWriter[oldParquetRow](&buf, pq.Compression(&snappy.Codec{}))
+	_, err := w.Write([]oldParquetRow{row})
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+
+	got, err := Decode(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+
+	assert.Equal(t, "old-evt", got[0].ID)
+	assert.JSONEq(t, payload, string(got[0].Data))
+	assert.Equal(t, "", got[0].DataIndexKey, "old bundle should read back with empty DataIndexKey")
 }
 
 func TestRoundtrip_EmptyStringFields(t *testing.T) {

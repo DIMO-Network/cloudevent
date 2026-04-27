@@ -14,4 +14,5 @@ type ParquetRow struct {
 	Extras          string    `parquet:"extras"`
 	Data            *string   `parquet:"data,optional"`
 	DataBase64      []byte    `parquet:"data_base64,optional"`
+	DataIndexKey    string    `parquet:"data_index_key,optional"`
 }

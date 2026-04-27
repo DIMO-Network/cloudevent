@@ -59,6 +59,7 @@ func TestMigration(t *testing.T) {
 		localch.DataVersionColumn,
 		localch.ExtrasColumn,
 		localch.IndexKeyColumn,
+		localch.DataIndexKeyColumn,
 	}
 	assert.ElementsMatch(t, expectedCols, cols, "Columns do not match")
 
