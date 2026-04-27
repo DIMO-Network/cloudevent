@@ -33,10 +33,7 @@ const (
 	ExtrasColumn = "extras"
 	// IndexKeyColumn is the name of the index name column in Clickhouse.
 	IndexKeyColumn = "index_key"
-	// DataIndexKeyColumn is the name of the column pointing at the external
-	// data payload object, when the payload is stored out-of-band. Empty
-	// string means the data is inline in the backing object referenced by
-	// IndexKeyColumn.
+	// DataIndexKeyColumn is the name of the data index name column in Clickhouse.
 	DataIndexKeyColumn = "data_index_key"
 
 	// InsertStmt is the SQL statement for inserting a row into Clickhouse.
@@ -60,16 +57,14 @@ const (
 
 // CloudEventToSlice converts a CloudEvent to an array of any for Clickhouse insertion.
 // The order of the elements in the array match the order of the columns in the table.
-// data_index_key is left empty; use StoredEventToSlice when the payload is
-// stored out-of-band.
+// index_key is computed from the event's headers.
 func CloudEventToSlice(event *cloudevent.CloudEventHeader) []any {
 	return CloudEventToSliceWithKey(event, CloudEventToObjectKey(event))
 }
 
 // CloudEventToSliceWithKey converts a CloudEvent to an array of any for Clickhouse insertion.
 // The order of the elements in the array match the order of the columns in the table.
-// data_index_key is left empty; use StoredEventToSlice when the payload is
-// stored out-of-band.
+// This variant allows the caller to specify a value for index_key.
 func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []any {
 	return cloudEventToSlice(event, key, "")
 }
