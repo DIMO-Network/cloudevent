@@ -33,7 +33,7 @@ func TestCloudEventToSlice(t *testing.T) {
 
 	// Test CloudEventToSlice
 	slice := CloudEventToSlice(event)
-	require.Len(t, slice, 11)
+	require.Len(t, slice, 12)
 
 	// Verify the order and values of the slice
 	assert.Equal(t, event.Subject, slice[0])
@@ -60,6 +60,9 @@ func TestCloudEventToSlice(t *testing.T) {
 
 	// data_index_key is empty for CloudEventToSlice (payload is not external)
 	assert.Equal(t, "", slice[10])
+
+	// voids_id is empty for non-tombstone events
+	assert.Equal(t, "", slice[11])
 }
 
 func TestCloudEventToSliceWithKey(t *testing.T) {
@@ -85,7 +88,7 @@ func TestCloudEventToSliceWithKey(t *testing.T) {
 
 	customKey := "custom-key"
 	slice := CloudEventToSliceWithKey(event, customKey)
-	require.Len(t, slice, 11)
+	require.Len(t, slice, 12)
 
 	// Verify the order and values of the slice
 	assert.Equal(t, event.Subject, slice[0])
@@ -111,6 +114,9 @@ func TestCloudEventToSliceWithKey(t *testing.T) {
 
 	// data_index_key is empty for CloudEventToSliceWithKey (payload is not external)
 	assert.Equal(t, "", slice[10])
+
+	// voids_id is empty for non-tombstone events
+	assert.Equal(t, "", slice[11])
 }
 
 func TestStoredEventToSlice(t *testing.T) {
@@ -135,11 +141,44 @@ func TestStoredEventToSlice(t *testing.T) {
 	}
 
 	slice := StoredEventToSlice(stored, "bundle/key#7")
-	require.Len(t, slice, 11)
+	require.Len(t, slice, 12)
 
 	assert.Equal(t, stored.Subject, slice[0])
 	assert.Equal(t, "bundle/key#7", slice[9])
 	assert.Equal(t, "payloads/abc123.jpg", slice[10])
+	assert.Equal(t, "", slice[11])
+
+	// VoidsID on the wrapper propagates into the slice.
+	stored.VoidsID = "voided-id-1"
+	slice = StoredEventToSlice(stored, "bundle/key#7")
+	assert.Equal(t, "voided-id-1", slice[11])
+}
+
+func TestTombstoneEventToSlice(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	event := &cloudevent.CloudEventHeader{
+		ID:              "tombstone-id",
+		Source:          "0xabc",
+		Producer:        "0xabc",
+		SpecVersion:     "1.0",
+		Subject:         "did:erc721:1:0xcafe:7",
+		Time:            now,
+		Type:            cloudevent.TypeAttestationTombstone,
+		DataContentType: "application/json",
+	}
+
+	slice := TombstoneEventToSlice(event, "bundle/key#0", "target-attestation-id")
+	require.Len(t, slice, 12)
+
+	assert.Equal(t, event.Subject, slice[0])
+	assert.Equal(t, event.Type, slice[2])
+	assert.Equal(t, event.ID, slice[3])
+	assert.Equal(t, "bundle/key#0", slice[9])
+	// Tombstone payloads are never externalized.
+	assert.Equal(t, "", slice[10])
+	assert.Equal(t, "target-attestation-id", slice[11])
 }
 
 func TestUnmarshalCloudEventSlice(t *testing.T) {
@@ -158,6 +197,7 @@ func TestUnmarshalCloudEventSlice(t *testing.T) {
 		`{"extra1":"value1","extra2":123}`,
 		"test-key",
 		"test-data-key",
+		"test-voids-id",
 	}
 
 	// Marshal the slice to JSON

@@ -17,6 +17,12 @@ const (
 	// TypeAttestation is the event type for 3rd party attestations
 	TypeAttestation = "dimo.attestation"
 
+	// TypeAttestationTombstone is the event type used to tombstone an
+	// attestation. The data payload carries the id of the attestation
+	// being tombstoned in the voidsId field; see the voids_id ClickHouse
+	// column populated from it.
+	TypeAttestationTombstone = "dimo.tombstone"
+
 	// TypeUnknown is the event type for unknown events.
 	TypeUnknown = "dimo.unknown"
 

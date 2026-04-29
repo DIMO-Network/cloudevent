@@ -35,6 +35,10 @@ const (
 	IndexKeyColumn = "index_key"
 	// DataIndexKeyColumn is the name of the data index name column in Clickhouse.
 	DataIndexKeyColumn = "data_index_key"
+	// VoidsIDColumn is the name of the voids_id column in Clickhouse. For
+	// dimo.tombstone events it holds the id of the attestation being
+	// tombstoned; empty for all other event types.
+	VoidsIDColumn = "voids_id"
 
 	// InsertStmt is the SQL statement for inserting a row into Clickhouse.
 	InsertStmt = "INSERT INTO " + TableName + " (" +
@@ -48,8 +52,9 @@ const (
 		DataVersionColumn + ", " +
 		ExtrasColumn + ", " +
 		IndexKeyColumn + ", " +
-		DataIndexKeyColumn +
-		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		DataIndexKeyColumn + ", " +
+		VoidsIDColumn +
+		") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	// hexChars contains the characters used for hex representation
 	hexChars = "0123456789abcdef"
@@ -66,18 +71,26 @@ func CloudEventToSlice(event *cloudevent.CloudEventHeader) []any {
 // The order of the elements in the array match the order of the columns in the table.
 // This variant allows the caller to specify a value for index_key.
 func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []any {
-	return cloudEventToSlice(event, key, "")
+	return cloudEventToSlice(event, key, "", "")
 }
 
 // StoredEventToSlice converts a StoredEvent to an array of any for Clickhouse
-// insertion, populating both index_key (caller-supplied) and data_index_key
-// (carried on the wrapper). The order of the elements matches the column
-// order in the table.
+// insertion, populating index_key (caller-supplied), data_index_key, and
+// voids_id (both carried on the wrapper). The order of the elements matches
+// the column order in the table.
 func StoredEventToSlice(stored *cloudevent.StoredEvent, indexKey string) []any {
-	return cloudEventToSlice(&stored.CloudEventHeader, indexKey, stored.DataIndexKey)
+	return cloudEventToSlice(&stored.CloudEventHeader, indexKey, stored.DataIndexKey, stored.VoidsID)
 }
 
-func cloudEventToSlice(event *cloudevent.CloudEventHeader, indexKey, dataIndexKey string) []any {
+// TombstoneEventToSlice converts a tombstone CloudEvent to an array of any for
+// Clickhouse insertion, populating index_key (caller-supplied) and voids_id
+// (the id of the attestation being tombstoned). data_index_key is left empty:
+// tombstone payloads are small and never externalized.
+func TombstoneEventToSlice(event *cloudevent.CloudEventHeader, indexKey, voidsID string) []any {
+	return cloudEventToSlice(event, indexKey, "", voidsID)
+}
+
+func cloudEventToSlice(event *cloudevent.CloudEventHeader, indexKey, dataIndexKey, voidsID string) []any {
 	// Add non-column fields to extras
 	extras := cloudevent.AddNonColumnFieldsToExtras(event)
 
@@ -99,6 +112,7 @@ func cloudEventToSlice(event *cloudevent.CloudEventHeader, indexKey, dataIndexKe
 		string(jsonExtra),
 		indexKey,
 		dataIndexKey,
+		voidsID,
 	}
 }
 
@@ -108,11 +122,11 @@ func UnmarshalCloudEventSlice(jsonArray []byte) ([]any, error) {
 	if err := json.Unmarshal(jsonArray, &rawSlice); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cloud event slice: %w", err)
 	}
-	if len(rawSlice) != 11 {
+	if len(rawSlice) != 12 {
 		return nil, fmt.Errorf("invalid cloud event slice length: %d", len(rawSlice))
 	}
 
-	// Column order: subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey, dataIndexKey
+	// Column order: subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey, dataIndexKey, voidsID
 	var (
 		subject         string
 		timestamp       time.Time
@@ -125,6 +139,7 @@ func UnmarshalCloudEventSlice(jsonArray []byte) ([]any, error) {
 		extras          string
 		indexKey        string
 		dataIndexKey    string
+		voidsID         string
 	)
 	unmarshal := func(i int, name string, ptr any) error {
 		if err := json.Unmarshal(rawSlice[i], ptr); err != nil {
@@ -165,7 +180,10 @@ func UnmarshalCloudEventSlice(jsonArray []byte) ([]any, error) {
 	if err := unmarshal(10, "data index key", &dataIndexKey); err != nil {
 		return nil, err
 	}
-	return []any{subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey, dataIndexKey}, nil
+	if err := unmarshal(11, "voids id", &voidsID); err != nil {
+		return nil, err
+	}
+	return []any{subject, timestamp, eventType, id, source, producer, dataContentType, dataVersion, extras, indexKey, dataIndexKey, voidsID}, nil
 }
 
 // CloudEventToObjectKey generates a unique key for storing cloud events.
