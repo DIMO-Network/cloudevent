@@ -36,8 +36,8 @@ const (
 	// DataIndexKeyColumn is the name of the data index name column in Clickhouse.
 	DataIndexKeyColumn = "data_index_key"
 	// VoidsIDColumn is the name of the voids_id column in Clickhouse. For
-	// dimo.tombstone events it holds the id of the attestation being
-	// tombstoned; empty for all other event types.
+	// dimo.tombstone events it holds the id of the event, usually an attestation,
+	// being tombstoned; empty for all other event types.
 	VoidsIDColumn = "voids_id"
 
 	// InsertStmt is the SQL statement for inserting a row into Clickhouse.
@@ -80,14 +80,6 @@ func CloudEventToSliceWithKey(event *cloudevent.CloudEventHeader, key string) []
 // the column order in the table.
 func StoredEventToSlice(stored *cloudevent.StoredEvent, indexKey string) []any {
 	return cloudEventToSlice(&stored.CloudEventHeader, indexKey, stored.DataIndexKey, stored.VoidsID)
-}
-
-// TombstoneEventToSlice converts a tombstone CloudEvent to an array of any for
-// Clickhouse insertion, populating index_key (caller-supplied) and voids_id
-// (the id of the attestation being tombstoned). data_index_key is left empty:
-// tombstone payloads are small and never externalized.
-func TombstoneEventToSlice(event *cloudevent.CloudEventHeader, indexKey, voidsID string) []any {
-	return cloudEventToSlice(event, indexKey, "", voidsID)
 }
 
 func cloudEventToSlice(event *cloudevent.CloudEventHeader, indexKey, dataIndexKey, voidsID string) []any {

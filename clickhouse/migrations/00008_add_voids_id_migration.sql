@@ -1,11 +1,13 @@
 -- +goose Up
 -- +goose StatementBegin
-ALTER TABLE cloud_event ADD COLUMN voids_id String DEFAULT '' COMMENT 'For dimo.tombstone events, the id of the attestation being tombstoned. Empty for all other event types.' AFTER data_index_key;
+ALTER TABLE cloud_event ADD COLUMN voids_id String DEFAULT '' COMMENT 'For dimo.tombstone events, the id of the event being tombstoned. Empty for all other event types.' AFTER data_index_key;
 -- +goose StatementEnd
 -- +goose StatementBegin
+-- Make it cheap to find these events. This may also help with some attestation filtering.
 ALTER TABLE cloud_event ADD INDEX idx_event_type event_type TYPE set(0) GRANULARITY 1;
 -- +goose StatementEnd
 -- +goose StatementBegin
+-- Do this asynchronously.
 ALTER TABLE cloud_event MATERIALIZE INDEX idx_event_type;
 -- +goose StatementEnd
 

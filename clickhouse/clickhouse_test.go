@@ -154,33 +154,6 @@ func TestStoredEventToSlice(t *testing.T) {
 	assert.Equal(t, "voided-id-1", slice[11])
 }
 
-func TestTombstoneEventToSlice(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	event := &cloudevent.CloudEventHeader{
-		ID:              "tombstone-id",
-		Source:          "0xabc",
-		Producer:        "0xabc",
-		SpecVersion:     "1.0",
-		Subject:         "did:erc721:1:0xcafe:7",
-		Time:            now,
-		Type:            cloudevent.TypeAttestationTombstone,
-		DataContentType: "application/json",
-	}
-
-	slice := TombstoneEventToSlice(event, "bundle/key#0", "target-attestation-id")
-	require.Len(t, slice, 12)
-
-	assert.Equal(t, event.Subject, slice[0])
-	assert.Equal(t, event.Type, slice[2])
-	assert.Equal(t, event.ID, slice[3])
-	assert.Equal(t, "bundle/key#0", slice[9])
-	// Tombstone payloads are never externalized.
-	assert.Equal(t, "", slice[10])
-	assert.Equal(t, "target-attestation-id", slice[11])
-}
-
 func TestUnmarshalCloudEventSlice(t *testing.T) {
 	t.Parallel()
 
