@@ -12,7 +12,9 @@ package cloudevent
 // tombstones. It is only meaningful for events whose Type is
 // TypeAttestationTombstone and is extracted server-side from the
 // signed Data payload — it must never be set from producer-supplied input
-// directly.
+// directly. It is used to cheaply populate the voids_id column in ClickHouse,
+// but is not stored as a column in Parquet bundles: you would have to parse
+// the data section of a Parquet row to recover the id.
 //
 // StoredEvent is deliberately separate from CloudEventHeader / RawEvent so
 // that the wire-format types remain pure and shared safely across services
