@@ -124,6 +124,9 @@ func Encode(w io.Writer, events []cloudevent.StoredEvent, objectKey string, opts
 		writerOpts = append(writerOpts, pq.WriteBufferSize(cfg.WriteBufferSize))
 	}
 	if cfg.SortRows {
+		// SortingWriterConfig only stamps the sorting-columns metadata into
+		// row groups — GenericWriter never reorders rows. The actual sort is
+		// the sort.SliceStable over `order` below; both are required.
 		writerOpts = append(writerOpts, pq.SortingWriterConfig(
 			pq.SortingColumns(pq.Ascending("subject"), pq.Ascending("time")),
 		))
