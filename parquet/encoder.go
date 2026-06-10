@@ -4,12 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 
 	"github.com/DIMO-Network/cloudevent"
 	pq "github.com/parquet-go/parquet-go"
 	"github.com/parquet-go/parquet-go/compress/snappy"
+	"github.com/parquet-go/parquet-go/compress/zstd"
 )
+
+// subjectBloomFilterBitsPerValue sizes the subject bloom filter at ~1% false
+// positives, which is what query engines need for row-group skipping.
+const subjectBloomFilterBitsPerValue = 10
 
 // EncoderConfig holds tunable parameters for the parquet encoder.
 type EncoderConfig struct {
@@ -24,6 +30,18 @@ type EncoderConfig struct {
 	// WriteBufferSize controls the write buffer size in bytes.
 	// Zero means use the parquet-go default.
 	WriteBufferSize int
+
+	// SortRows orders rows by (subject, time) before writing and declares the
+	// sorting columns in the file metadata, enabling row-group pruning on
+	// subject for engines that read column statistics.
+	SortRows bool
+
+	// ZstdCompression replaces the default Snappy codec with Zstd.
+	ZstdCompression bool
+
+	// SubjectBloomFilter writes a split-block bloom filter for the subject
+	// column so point lookups can skip row groups without reading pages.
+	SubjectBloomFilter bool
 }
 
 // Option is a functional option for configuring the parquet encoder.
@@ -50,9 +68,33 @@ func WithWriteBufferSize(n int) Option {
 	}
 }
 
-// Encode writes events as Snappy-compressed Parquet to w. Each event is assigned
-// an index key in the format "objectKey#rowOffset". The returned map contains
-// the event index to index key mapping.
+// WithSortedRows sorts rows by (subject, time) before writing. The returned
+// index keys still map each input event index to its (post-sort) row offset.
+func WithSortedRows() Option {
+	return func(c *EncoderConfig) {
+		c.SortRows = true
+	}
+}
+
+// WithZstdCompression compresses pages with Zstd instead of Snappy.
+func WithZstdCompression() Option {
+	return func(c *EncoderConfig) {
+		c.ZstdCompression = true
+	}
+}
+
+// WithSubjectBloomFilter adds a bloom filter on the subject column.
+func WithSubjectBloomFilter() Option {
+	return func(c *EncoderConfig) {
+		c.SubjectBloomFilter = true
+	}
+}
+
+// Encode writes events as compressed Parquet to w (Snappy by default, Zstd
+// with WithZstdCompression). Each event is assigned an index key in the
+// format "objectKey#rowOffset". The returned map contains the event index to
+// index key mapping; with WithSortedRows the offset reflects the row's
+// position after sorting.
 //
 // Each StoredEvent's DataIndexKey is written into the row so that a reader
 // holding a bundle alone can locate any externally-stored payload without
@@ -66,8 +108,11 @@ func Encode(w io.Writer, events []cloudevent.StoredEvent, objectKey string, opts
 		opt(&cfg)
 	}
 
-	writerOpts := []pq.WriterOption{
-		pq.Compression(&snappy.Codec{}),
+	writerOpts := []pq.WriterOption{}
+	if cfg.ZstdCompression {
+		writerOpts = append(writerOpts, pq.Compression(&zstd.Codec{}))
+	} else {
+		writerOpts = append(writerOpts, pq.Compression(&snappy.Codec{}))
 	}
 	if cfg.MaxRowsPerRowGroup > 0 {
 		writerOpts = append(writerOpts, pq.MaxRowsPerRowGroup(cfg.MaxRowsPerRowGroup))
@@ -78,19 +123,43 @@ func Encode(w io.Writer, events []cloudevent.StoredEvent, objectKey string, opts
 	if cfg.WriteBufferSize > 0 {
 		writerOpts = append(writerOpts, pq.WriteBufferSize(cfg.WriteBufferSize))
 	}
+	if cfg.SortRows {
+		writerOpts = append(writerOpts, pq.SortingWriterConfig(
+			pq.SortingColumns(pq.Ascending("subject"), pq.Ascending("time")),
+		))
+	}
+	if cfg.SubjectBloomFilter {
+		writerOpts = append(writerOpts, pq.BloomFilters(
+			pq.SplitBlockFilter(subjectBloomFilterBitsPerValue, "subject"),
+		))
+	}
 
 	writer := pq.NewGenericWriter[ParquetRow](w, writerOpts...)
+
+	// order[rowOffset] = original event index. Identity unless sorting.
+	order := make([]int, len(events))
+	for i := range order {
+		order[i] = i
+	}
+	if cfg.SortRows {
+		sort.SliceStable(order, func(a, b int) bool {
+			ea, eb := &events[order[a]], &events[order[b]]
+			if ea.Subject != eb.Subject {
+				return ea.Subject < eb.Subject
+			}
+			return ea.Time.Before(eb.Time)
+		})
+	}
 
 	rows := make([]ParquetRow, 0, len(events))
 	indexKeys := make(map[int]string, len(events))
 
-	for i := range events {
-		indexKey := objectKey + "#" + strconv.Itoa(i)
-		indexKeys[i] = indexKey
+	for offset, eventIdx := range order {
+		indexKeys[eventIdx] = objectKey + "#" + strconv.Itoa(offset)
 
-		row, err := convertEvent(&events[i])
+		row, err := convertEvent(&events[eventIdx])
 		if err != nil {
-			return nil, fmt.Errorf("converting event at index %d: %w", i, err)
+			return nil, fmt.Errorf("converting event at index %d: %w", eventIdx, err)
 		}
 		rows = append(rows, row)
 	}

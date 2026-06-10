@@ -703,3 +703,122 @@ func TestRoundtrip_EmptyStringFields(t *testing.T) {
 	assert.Equal(t, "", events[0].Subject)
 	assert.Equal(t, "empty-fields", events[0].ID)
 }
+
+// makeEventAt builds a RawEvent with explicit subject and time for sort tests.
+func makeEventAt(id, subject string, ts time.Time) cloudevent.RawEvent {
+	ev := makeEvent(id, json.RawMessage(`{"v":1}`))
+	ev.Subject = subject
+	ev.Time = ts
+	return ev
+}
+
+func TestEncode_WithSortedRows(t *testing.T) {
+	t.Parallel()
+	t0 := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	events := []cloudevent.RawEvent{
+		makeEventAt("e-b2", "did:erc721:137:0xB:2", t0.Add(2*time.Minute)),
+		makeEventAt("e-a2", "did:erc721:137:0xA:1", t0.Add(time.Minute)),
+		makeEventAt("e-b1", "did:erc721:137:0xB:2", t0),
+		makeEventAt("e-a1", "did:erc721:137:0xA:1", t0),
+	}
+
+	buf, keys := encodeToBuffer(t, events, "sorted", WithSortedRows())
+
+	// Rows come back sorted by (subject, time).
+	r := bytes.NewReader(buf.Bytes())
+	got, err := Decode(r, int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, got, 4)
+	wantOrder := []string{"e-a1", "e-a2", "e-b1", "e-b2"}
+	for i, want := range wantOrder {
+		assert.Equal(t, want, got[i].ID, "row %d", i)
+	}
+
+	// Index keys reference post-sort row offsets per original event index.
+	assert.Equal(t, "sorted#3", keys[0]) // e-b2
+	assert.Equal(t, "sorted#1", keys[1]) // e-a2
+	assert.Equal(t, "sorted#2", keys[2]) // e-b1
+	assert.Equal(t, "sorted#0", keys[3]) // e-a1
+
+	// Sorting columns are declared in file metadata.
+	f, err := pq.OpenFile(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	rg := f.RowGroups()
+	require.NotEmpty(t, rg)
+	sc := rg[0].SortingColumns()
+	require.Len(t, sc, 2)
+	assert.Equal(t, []string{"subject"}, sc[0].Path())
+	assert.Equal(t, []string{"time"}, sc[1].Path())
+}
+
+func TestEncode_WithZstdCompression(t *testing.T) {
+	t.Parallel()
+	events := []cloudevent.RawEvent{
+		makeEvent("evt-z", json.RawMessage(`{"speed":55}`)),
+	}
+
+	buf, _ := encodeToBuffer(t, events, "zstd", WithZstdCompression())
+
+	f, err := pq.OpenFile(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	chunk := f.RowGroups()[0].ColumnChunks()[0]
+	pages := chunk.Pages()
+	t.Cleanup(func() { _ = pages.Close() })
+	// Codec is recorded in the column chunk metadata.
+	meta, err := f.Metadata().RowGroups[0].Columns[0].MetaData, error(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "ZSTD", meta.Codec.String())
+
+	// Roundtrip still works.
+	r := bytes.NewReader(buf.Bytes())
+	got, err := Decode(r, int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "evt-z", got[0].ID)
+}
+
+func TestEncode_WithSubjectBloomFilter(t *testing.T) {
+	t.Parallel()
+	events := []cloudevent.RawEvent{
+		makeEventAt("e-1", "did:erc721:137:0xA:1", time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)),
+		makeEventAt("e-2", "did:erc721:137:0xB:2", time.Date(2025, 6, 15, 12, 1, 0, 0, time.UTC)),
+	}
+
+	buf, _ := encodeToBuffer(t, events, "bloom", WithSubjectBloomFilter())
+
+	f, err := pq.OpenFile(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	var subjectChunk pq.ColumnChunk
+	for _, chunk := range f.RowGroups()[0].ColumnChunks() {
+		if f.Schema().Columns()[chunk.Column()][0] == "subject" {
+			subjectChunk = chunk
+		}
+	}
+	require.NotNil(t, subjectChunk)
+	bf := subjectChunk.BloomFilter()
+	require.NotNil(t, bf, "subject column should carry a bloom filter")
+
+	ok, err := bf.Check(pq.ValueOf("did:erc721:137:0xA:1"))
+	require.NoError(t, err)
+	assert.True(t, ok, "bloom filter should contain written subject")
+}
+
+func TestEncode_AllNewOptionsCombined(t *testing.T) {
+	t.Parallel()
+	t0 := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	events := []cloudevent.RawEvent{
+		makeEventAt("e-2", "did:erc721:137:0xB:2", t0),
+		makeEventAt("e-1", "did:erc721:137:0xA:1", t0),
+	}
+
+	buf, keys := encodeToBuffer(t, events, "combo",
+		WithSortedRows(), WithZstdCompression(), WithSubjectBloomFilter())
+	require.Len(t, keys, 2)
+
+	r := bytes.NewReader(buf.Bytes())
+	got, err := Decode(r, int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "e-1", got[0].ID)
+	assert.Equal(t, "e-2", got[1].ID)
+}
