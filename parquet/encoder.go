@@ -204,6 +204,7 @@ func convertEvent(event *cloudevent.StoredEvent) (ParquetRow, error) {
 		Producer:        event.Producer,
 		Extras:          string(extrasJSON),
 		DataIndexKey:    event.DataIndexKey,
+		VoidsID:         event.VoidsID,
 	}
 
 	if event.DataBase64 != "" {

@@ -822,3 +822,19 @@ func TestEncode_AllNewOptionsCombined(t *testing.T) {
 	assert.Equal(t, "e-1", got[0].ID)
 	assert.Equal(t, "e-2", got[1].ID)
 }
+
+func TestDecode_VoidsIDRoundTrip(t *testing.T) {
+	t.Parallel()
+	ev := cloudevent.StoredEvent{
+		RawEvent: makeEvent("evt-tomb", json.RawMessage(`{"reason":"superseded"}`)),
+		VoidsID:  "evt-voided",
+	}
+	var buf bytes.Buffer
+	_, err := Encode(&buf, []cloudevent.StoredEvent{ev}, "key")
+	require.NoError(t, err)
+
+	events, err := Decode(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "evt-voided", events[0].VoidsID)
+}

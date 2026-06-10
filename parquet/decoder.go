@@ -134,6 +134,7 @@ func convertRow(row *ParquetRow) (cloudevent.StoredEvent, error) {
 			CloudEventHeader: header,
 		},
 		DataIndexKey: row.DataIndexKey,
+		VoidsID:      row.VoidsID,
 	}
 
 	if len(row.DataBase64) > 0 {
