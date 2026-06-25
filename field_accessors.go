@@ -29,9 +29,15 @@ func RestoreNonColumnFields(event *CloudEventHeader) {
 	}
 	if val, ok := event.Extras["tags"]; ok {
 		if anySlice, ok := val.([]any); ok {
-			typedSlice := make([]string, len(anySlice))
-			for i, v := range anySlice {
-				typedSlice[i] = v.(string)
+			// Skip non-string elements rather than panic on the unchecked assertion:
+			// stored extras come from arbitrary producer JSON (e.g. a backfilled bundle
+			// with {"tags":[42]} or a null element), and the parquet Decode path has no
+			// recover — an unguarded v.(string) would crash the reader/backfill.
+			typedSlice := make([]string, 0, len(anySlice))
+			for _, v := range anySlice {
+				if s, ok := v.(string); ok {
+					typedSlice = append(typedSlice, s)
+				}
 			}
 			event.Tags = typedSlice
 		}
